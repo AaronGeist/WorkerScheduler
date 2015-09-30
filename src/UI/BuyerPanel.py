@@ -107,7 +107,7 @@ class BuyerPanel(wx.Panel):
         s = Scheduler(self.data._data, self.workloadInput.GetValue(), self.maxRestDayInput.GetValue())
         while count < s.MAX_RETRY_TIME:
             count += 1
-            data = s.schedule(self.dateInput.GetValue())
+            data = s.doSchedule(self.dateInput.GetValue())
             if s.validateSchedule(data):
                 result = list()
                 for line in sorted(data.iteritems(), key=lambda d: d[0]):

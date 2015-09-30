@@ -39,7 +39,7 @@ class MainWindow(wx.Frame):
         menufile = wx.Menu()
 
         # mnuclear = menufile.Append(wx.ID_CLEAR, '清理过期数据', '清理过期数据')
-        mnuimport = menufile.Append(wx.ID_ADD, '导入数据', '导入制定文件格式的数据')
+        # mnuimport = menufile.Append(wx.ID_ADD, '导入数据', '导入制定文件格式的数据')
         # mnuabout = menufile.Append(wx.ID_ABOUT, '关于', '关于本程序')
         mnuexit = menufile.Append(wx.ID_EXIT, '退出', '退出程序')
 
@@ -47,7 +47,7 @@ class MainWindow(wx.Frame):
 
         menubar.Append(menufile, '文件')
 
-        self.Bind(wx.EVT_MENU, self.onImport, mnuimport)
+        # self.Bind(wx.EVT_MENU, self.onImport, mnuimport)
         # self.Bind(wx.EVT_MENU, self.onClear, mnuclear)
         # self.Bind(wx.EVT_MENU, self.onAbout, mnuabout)
         self.Bind(wx.EVT_MENU, self.onExit, mnuexit)
@@ -57,13 +57,13 @@ class MainWindow(wx.Frame):
     def setupPanel(self):
 
         nb = wx.Notebook(self)
-        self.buyerPanel = BuyerPanel(nb)
-        nb.AddPage(self.buyerPanel, "智能排班", select=True)
-        # nb.AddPage(SellerPanel(nb), '庄家统计')
+        # self.buyerPanel = BuyerPanel(nb)
+        # nb.AddPage(self.buyerPanel, "智能排班", select=True)
+        nb.AddPage(SellerPanel(nb), '智能排班算法演示')
 
     def onAbout(self, evt):
         '''点击about的事件响应'''
-        dlg = wx.MessageDialog(self, 'This app is a simple text editor', '关于', wx.OK)
+        dlg = wx.MessageDialog(self, '微信号shakazxx', '关于', wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 

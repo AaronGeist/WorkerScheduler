@@ -9,33 +9,73 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 200
+    MAX_RETRY_TIME = 20000
+    # 保证基本公平，最多差值为delta*2
+    MAX_DELTA_DAY = 1
 
-    def __init__(self, nameList, workload=NUM_OF_WORKLOAD, minWorkDay=MIN_WORK_DAY, maxWorkDay=MAX_WORK_DAY):
-        self.workers = nameList
+    def __init__(self, workers, workload=NUM_OF_WORKLOAD, minWorkDay=MIN_WORK_DAY, maxWorkDay=MAX_WORK_DAY):
+        self.workers = workers
+        random.shuffle(self.workers)
         self.workload = int(workload)
         self.minWorkDay = int(minWorkDay)
         self.maxWorkDay = int(maxWorkDay)
-        pass
 
     def schedule(self, targetDays):
+        targetDays = int(targetDays)
+        if len(self.workers) == self.workload:
+            print 'worker number equals to workload, don\'t need to schedule at all'
+            return False
+        if self.minWorkDay > self.maxWorkDay:
+            print 'min day > max day'
+            return False
+        if self.minWorkDay == self.maxWorkDay:
+            if len(self.workers) < self.workload * 2:
+                print 'min=max but workers < workload * 2, not enough worker to handle the workload'
+                return False
+            else:
+                # 固定班次的话，则误差可能为固定连续出勤数
+                self.MAX_DELTA_DAY = self.minWorkDay
+
+        retryCnt = 0
+        minDelta = self.MAX_WORK_DAY
+        unBalancedResult = dict()
+        while retryCnt < self.MAX_RETRY_TIME:
+            retryCnt += 1
+            result = self.doSchedule(targetDays)
+            if self.validateSchedule(result):
+                currentDelta = self.getMaxDelta(result, targetDays)
+                if currentDelta <= self.MAX_DELTA_DAY:
+                    print 'after', retryCnt, 'time\'s retry'
+                    self.printSchedule(result)
+                    print self.calculateWorkDayPerWorker(result)
+                    return result
+                else:
+                    # 如果不够平均，则取目前最平均的排班返回
+                    if minDelta > currentDelta:
+                        unBalancedResult = result
+
+        else:
+            print 'fail to schedule after', self.MAX_RETRY_TIME, 'retries'
+            self.printSchedule(result)
+            print self.calculateWorkDayPerWorker(result)
+            return unBalancedResult
+
+
+    def doSchedule(self, targetDays):
 
         emptyResult = dict()
 
         targetDays = int(targetDays)
 
         workerNum = len(self.workers)
-        # 平均工时每人（天）
-        targetTotalWorkDay = targetDays * workerNum / self.workload
+        # 平均工时每人（天）,向上取整
+        targetTotalWorkDay = int(targetDays * self.workload + workerNum - 1) / workerNum
 
         if self.minWorkDay > targetTotalWorkDay:
             print "最小连续工时大于平均工时，不能平均安排工时"
             return emptyResult
 
         firstTargetDate = 1
-
-        # 当所有人的剩余工时为0时循环结束
-        workDayLeft = [targetTotalWorkDay] * workerNum
 
         # 字典格式为key=日期，value=list of worker
         targetCalendar = dict()
@@ -75,7 +115,7 @@ class Scheduler:
 
                 # 如果while循环到了末尾没成功,则退出（可能是因为不需要再安排了？）
                 if firstTargetDate > targetDays:
-                    print "Cannot find empty day for worker", self.workers[index]
+                    # print "Cannot find empty day for worker", self.workers[index]
                     stopFlag = True
                     break
 
@@ -94,15 +134,11 @@ class Scheduler:
             if sum(map(lambda x: x.workDayLeft, workerStats.values())) == 0:
                 break
 
-        print 'finish schedule'
-
         # 去除超过targetDay的安排
         currentSize = len(targetCalendar)
         if currentSize > targetDays:
             for i in range(targetDays + 1, currentSize + 1):
                 del targetCalendar[i]
-
-        self.printSchedule(targetCalendar)
 
         return targetCalendar
 
@@ -114,6 +150,9 @@ class Scheduler:
         if targetCalendar:
             workerStats = dict()
             for (currentDate, workerList) in targetCalendar.items():
+                if len(workerList) != self.workload:
+                    return False
+
                 for worker in workerList:
                     stats = workerStats.get(worker, WorkerStats(worker, 0))
 
@@ -124,13 +163,11 @@ class Scheduler:
                         # 连续两天上班或第一天上班
                         stats.accumulatedWorkDay += 1
                         if stats.accumulatedWorkDay > self.maxWorkDay:
-                            print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
+                            # print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
                             return False
                     else:
                         # 中间有休息
                         if stats.accumulatedWorkDay < self.minWorkDay and currentDate != 1:
-                            print 'current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
-                                stats.accumulatedWorkDay, 'doesn\'t meet min work day', self.minWorkDay
                             return False
                         # 重置为1
                         stats.accumulatedWorkDay = 1
@@ -138,8 +175,6 @@ class Scheduler:
                     stats.totalWorkDay += 1
                     stats.previousDate = currentDate
 
-                    # print '2 current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
-                    #             stats.accumulatedWorkDay
                     workerStats[worker] = stats
             return True
         else:
@@ -160,19 +195,30 @@ class Scheduler:
         else:
             return dict()
 
+    def getMaxDelta(self, targetCalendar, targetDays):
+        workerDayPerWorker = self.calculateWorkDayPerWorker(targetCalendar)
+        # 平均工时每人（天）,向上取整
+        targetTotalWorkDay = int(targetDays * self.workload + len(self.workers) - 1) / len(self.workers)
+        result = filter(lambda (x, y): abs(y - targetTotalWorkDay) > self.MAX_DELTA_DAY, workerDayPerWorker.items())
+        if len(result) == 0:
+            # 已经达到要求
+            return self.MAX_DELTA_DAY
+        else:
+            result.sort()
+            return result.pop()
+
 
 
 if __name__ == "__main__":
-    nameList = range(1, 6)
-    s = Scheduler(nameList)
+    # workerNum = 5
+    # s = Scheduler(range(1, workerNum + 1))
+    #
+    # targetDays = 20
+    # s.schedule(targetDays)
 
-    data = s.schedule(20)
-    if s.validateSchedule(data):
-        print 'success"'
-        print s.calculateWorkDayPerWorker(data)
-    else:
-        print 'failed'
+    workerNum = 7
+    s = Scheduler(range(1, workerNum + 1), 4, 3, 5)
 
-        # s.printSchedule(data)
+    targetDays = 30
+    s.schedule(targetDays)
 
-        # break
