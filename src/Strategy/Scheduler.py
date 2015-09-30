@@ -42,22 +42,21 @@ class Scheduler:
 
         # 结构为key=员工号，value=[剩余工作天数，[之前工作天数起始值]]
         workerStats = dict()
-        for worker in self.workers:
-            workerStats[worker] = WorkerStats(targetTotalWorkDay)
+        for i in range(0, workerNum):
+            workerStats[i] = WorkerStats(i, targetTotalWorkDay)
 
-        previousWorkerDay = [0] * workerNum
-
-        while True:
+        stopFlag = False
+        while not stopFlag:
             # 遍历每个worker，安排工作日期
             for index in range(0, workerNum):
                 # 如果已经安排完所有工时，则跳过
-                if workerStats[self.workers[index]].workDayLeft == 0:
+                if workerStats[index].workDayLeft == 0:
                     continue
 
                 # 在最大连续和最小连续之间随机选数
                 randomWorkDay = random.randint(self.minWorkDay, self.maxWorkDay)
 
-                print "current worker", index, "current day", firstTargetDate, 'workday length', randomWorkDay
+                # print "current worker", index, "current day", firstTargetDate, 'workday length', randomWorkDay
 
                 # 找到最早的没有安排该员工工作，且没有满员的日期
                 while firstTargetDate <= targetDays:
@@ -77,16 +76,16 @@ class Scheduler:
                 # 如果while循环到了末尾没成功,则退出（可能是因为不需要再安排了？）
                 if firstTargetDate > targetDays:
                     print "Cannot find empty day for worker", self.workers[index]
-                    self.printSchedule(targetCalendar)
-                    return emptyResult
+                    stopFlag = True
+                    break
 
                 # 开始日期已经找到，安排工作
                 for i in range(0, randomWorkDay):
                     workerList = targetCalendar.get(firstTargetDate + i, list())
-                    workerList.append(self.workers[index])
+                    workerList.append(index)
                     targetCalendar[firstTargetDate + i] = workerList
 
-                stats = workerStats.get(self.workers[index])
+                stats = workerStats.get(index)
                 stats.workDayLeft -= randomWorkDay
                 # TODO should use this data
                 stats.arrangedWorkDay.append(ArrangedWorkDay(firstTargetDate, firstTargetDate + randomWorkDay))
@@ -95,25 +94,85 @@ class Scheduler:
             if sum(map(lambda x: x.workDayLeft, workerStats.values())) == 0:
                 break
 
+        print 'finish schedule'
+
+        # 去除超过targetDay的安排
+        currentSize = len(targetCalendar)
+        if currentSize > targetDays:
+            for i in range(targetDays + 1, currentSize + 1):
+                del targetCalendar[i]
+
         self.printSchedule(targetCalendar)
+
         return targetCalendar
 
     def printSchedule(self, targetCalendar):
-        for (day, idList) in targetCalendar.items():
-            print str(day) + ": " + ", ".join(map(str, idList))
+        for (day, workerIdList) in targetCalendar.items():
+            print str(day) + ": " + ", ".join(map(str, map(lambda id: self.workers[id], workerIdList)))
 
     def validateSchedule(self, targetCalendar):
         if targetCalendar:
-            workerStats =
+            workerStats = dict()
+            for (currentDate, workerList) in targetCalendar.items():
+                for worker in workerList:
+                    stats = workerStats.get(worker, WorkerStats(worker, 0))
+
+                    # print '1 current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
+                    #             stats.accumulatedWorkDay
+
+                    if currentDate == (stats.previousDate + 1) or stats.previousDate == -1:
+                        # 连续两天上班或第一天上班
+                        stats.accumulatedWorkDay += 1
+                        if stats.accumulatedWorkDay > self.maxWorkDay:
+                            print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
+                            return False
+                    else:
+                        # 中间有休息
+                        if stats.accumulatedWorkDay < self.minWorkDay and currentDate != 1:
+                            print 'current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
+                                stats.accumulatedWorkDay, 'doesn\'t meet min work day', self.minWorkDay
+                            return False
+                        # 重置为1
+                        stats.accumulatedWorkDay = 1
+
+                    stats.totalWorkDay += 1
+                    stats.previousDate = currentDate
+
+                    # print '2 current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
+                    #             stats.accumulatedWorkDay
+                    workerStats[worker] = stats
+            return True
+        else:
+            # 排班为空
+            print 'empty calendar'
+            return False
+
+    def calculateWorkDayPerWorker(self, targetCalendar):
+        if targetCalendar:
+            workerDayPerWorker = dict()
+            for (currentDate, workerIdList) in targetCalendar.items():
+                for workerId in workerIdList:
+                    totalDay = workerDayPerWorker.get(self.workers[workerId], 0)
+                    totalDay += 1
+                    workerDayPerWorker[self.workers[workerId]] = totalDay
+            return workerDayPerWorker
+
+        else:
+            return dict()
+
 
 
 if __name__ == "__main__":
     nameList = range(1, 6)
-    count = 0
     s = Scheduler(nameList)
 
     data = s.schedule(20)
-    # if s.validateSchedule(data):
-    # s.printSchedule(data)
+    if s.validateSchedule(data):
+        print 'success"'
+        print s.calculateWorkDayPerWorker(data)
+    else:
+        print 'failed'
 
-    # break
+        # s.printSchedule(data)
+
+        # break
