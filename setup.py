@@ -6,6 +6,6 @@ __author__ = 'yzhou7'
 setup(
     windows=[{
          'script': 'Main.py',
-        'icon_resources': [(1, '.\Resource\panda1.ico')]
+        'icon_resources': [(1, '.\Resource\panda.ico')]
     }]
 )
