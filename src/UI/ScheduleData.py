@@ -1,3 +1,4 @@
+# coding=utf-8
 __author__ = 'yzhou7'
 
 import wx
@@ -8,7 +9,7 @@ class ScheduleData(wx.grid.PyGridTableBase):
 
     def __init__(self):
         wx.grid.PyGridTableBase.__init__(self)
-        self._cols = ['日期', '出勤人员名单', '休息人员名单']
+        self._cols = ['鏃ユ湡'.decode('utf-8', 'ignore'), '鍑哄嫟浜哄憳鍚嶅崟'.decode('utf-8', 'ignore'), '浼戞伅浜哄憳鍚嶅崟'.decode('utf-8', 'ignore')]
         self._data = list()
         self._highlighted = set()
     #

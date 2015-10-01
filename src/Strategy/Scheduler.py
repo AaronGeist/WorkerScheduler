@@ -10,7 +10,7 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 20000
+    MAX_RETRY_TIME = 10000
     # 保证基本公平，最多差值为delta*2
     MAX_DELTA_DAY = 1
 
@@ -40,6 +40,12 @@ class Scheduler:
             else:
                 # 固定班次的话，则误差可能为固定连续出勤数
                 self.MAX_DELTA_DAY = self.minWorkDay
+        # 这种情况包含了上一种情况
+        if len(self.workers) < self.workload * 2:
+            if self.maxWorkDay < self.minWorkDay * 2:
+                print 'min * 2 > max while workers < workload * 2, not enough worker to handle the workload'
+                scheduleResult.message = '总员工数小于每天出勤人数的两倍，且最大连续出勤天数小于最小连续出勤天数的两倍，人手不足'
+                return scheduleResult
 
         workerNum = len(self.workers)
         # 平均工时每人（天）,向上取整
@@ -50,7 +56,7 @@ class Scheduler:
             return scheduleResult
 
         retryCnt = 0
-        minDelta = self.MAX_WORK_DAY
+        minDelta = 99999
         unBalancedResult = dict()
         while retryCnt < self.MAX_RETRY_TIME:
             retryCnt += 1
@@ -62,21 +68,26 @@ class Scheduler:
 
                     self.printSchedule(resultCalendar)
                     scheduleResult.message = '排班成功且工时较为平均'
-                    scheduleResult.calendar = resultCalendar
+                    scheduleResult.workCalendar = resultCalendar
                     scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(resultCalendar)
+                    scheduleResult.restCalendar = self.getRestCalendar(resultCalendar)
                     return scheduleResult
                 else:
                     # 如果不够平均，则取目前最平均的排班返回
                     if minDelta > currentDelta:
-                        unBalancedResult = result
+                        unBalancedResult = resultCalendar
 
-        else:
-            print 'fail to schedule after', self.MAX_RETRY_TIME, 'retries'
-            self.printSchedule(unBalancedResult)
+
+        print 'fail to schedule after', self.MAX_RETRY_TIME, 'retries'
+        self.printSchedule(unBalancedResult)
+        if unBalancedResult:
             scheduleResult.message = '排班成功但没有找到工时最平均方案'
-            scheduleResult.calendar = unBalancedResult
+            scheduleResult.workCalendar = unBalancedResult
             scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(unBalancedResult)
-            return scheduleResult
+            scheduleResult.restCalendar = self.getRestCalendar(resultCalendar)
+        else:
+            scheduleResult.message = '没有找到符合条件的排班方案，请调整参数'
+        return scheduleResult
 
 
     def doSchedule(self, targetDays):
@@ -101,9 +112,27 @@ class Scheduler:
         while not stopFlag:
             # 遍历每个worker，安排工作日期
             for index in range(0, workerNum):
-                # 如果已经安排完所有工时，则跳过
-                if workerStats[index].workDayLeft == 0:
+                if workerStats[index].workDayLeft <= 0:
+                    # 如果已经安排完所有工时，则跳过
                     continue
+                elif workerStats[index].workDayLeft < self.minWorkDay:
+                    # 寻找第一个未安排的日期
+                    firstEmptyDate = firstTargetDate
+                    # print 'current', firstTargetDate, 'finding empty date for worker', index, 'day left', workerStats[index].workDayLeft
+                    while firstEmptyDate <= targetDays:
+                        if len(targetCalendar.get(firstEmptyDate, list())) == 0:
+                            # print 'empty date found', firstEmptyDate
+                            break
+                        else:
+                            firstEmptyDate += 1
+
+                    # 如果剩下的空余天数足够安排，则安排，否则照常规逻辑
+                    if targetDays - firstEmptyDate >= workerStats[index].workDayLeft:
+                        for i in range(0, workerStats[index].workDayLeft):
+                            workerList = list()
+                            workerList.append(index)
+                            targetCalendar[firstEmptyDate + i] = workerList
+                        continue
 
                 # 在最大连续和最小连续之间随机选数
                 randomWorkDay = random.randint(self.minWorkDay, self.maxWorkDay)
@@ -120,9 +149,18 @@ class Scheduler:
 
                     # 该员工已经在这天安排了工作
                     if index in workerList:
-                        # TODO 找到最早的没有安排该员工工作的日期
+                        # # 寻找第一个未安排的日期
+                        # firstEmptyDate = firstTargetDate
+                        # # print 'current', firstTargetDate, 'finding empty date for worker', index, 'day left', workerStats[index].workDayLeft
+                        # while firstEmptyDate <= targetDays:
+                        #     if len(targetCalendar.get(firstEmptyDate, list())) == 0:
+                        #         # print 'empty date found', firstEmptyDate
+                        #         break
+                        #     else:
+                        #         firstEmptyDate += 1
+                        #
+                        # if targetDays == firstEmptyDate:
                         pass
-
                     break
 
                 # 如果while循环到了末尾没成功,则退出（可能是因为不需要再安排了？）
@@ -138,7 +176,7 @@ class Scheduler:
                     targetCalendar[firstTargetDate + i] = workerList
 
                 stats = workerStats.get(index)
-                stats.workDayLeft -= randomWorkDay
+                stats.workDayLeft = max(0, stats.workDayLeft - randomWorkDay)
                 # TODO should use this data
                 stats.arrangedWorkDay.append(ArrangedWorkDay(firstTargetDate, firstTargetDate + randomWorkDay))
 
@@ -162,6 +200,7 @@ class Scheduler:
         if targetCalendar:
             workerStats = dict()
             for (currentDate, workerList) in targetCalendar.items():
+                workerList = list(set(workerList))
                 if len(workerList) != self.workload:
                     return False
 
@@ -216,8 +255,17 @@ class Scheduler:
             # 已经达到要求
             return self.MAX_DELTA_DAY
         else:
-            result.sort()
-            return result.pop()
+            sorted(result, key=lambda x: x[1])
+            return result[0][1]
+
+    def getRestCalendar(self, targetCalendar):
+        restCalendar = dict()
+        for (day, workIdList) in targetCalendar.items():
+            restCalendar[day] = range(0, len(self.workers))
+            for workId in workIdList:
+                if workId in restCalendar[day]:
+                    restCalendar[day].remove(workId)
+        return restCalendar
 
 
 
@@ -228,8 +276,8 @@ if __name__ == "__main__":
     # targetDays = 20
     # s.schedule(targetDays)
 
-    workerNum = 7
-    s = Scheduler(range(1, workerNum + 1), 5, 4, 6)
+    workerNum = 20
+    s = Scheduler(range(1, workerNum + 1), 12, 3, 6)
 
     targetDays = 30
     s.schedule(targetDays)

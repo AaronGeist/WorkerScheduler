@@ -1,3 +1,4 @@
+# coding=utf-8
 import os
 from src.Strategy.Scheduler import Scheduler
 from src.UI.ScheduleData import ScheduleData
@@ -30,38 +31,38 @@ class SellerPanel(wx.Panel):
 
         sizer = wx.GridBagSizer(4, 4)
 
-        workerNumText = wx.StaticText(self, label='×ÜÈËÊı')
+        workerNumText = wx.StaticText(self, label="æ€»äººæ•°".decode('utf-8', 'ignore'))
         sizer.Add(workerNumText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        self.workerNumInput = wx.TextCtrl(self, value='5', style=wx.TE_PROCESS_ENTER)
+        self.workerNumInput = wx.TextCtrl(self, value='20', style=wx.TE_PROCESS_ENTER)
         sizer.Add(self.workerNumInput, pos=(0, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
-        targetDaysText = wx.StaticText(self, label='ÅÅ°àÌìÊı')
+        targetDaysText = wx.StaticText(self, label='æ’ç­å¤©æ•°'.decode('utf-8', 'ignore'))
         sizer.Add(targetDaysText, pos=(0, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.tagetDaysInput = wx.TextCtrl(self, value='30', style=wx.TE_PROCESS_ENTER)
         sizer.Add(self.tagetDaysInput, pos=(0, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
-        workloadText = wx.StaticText(self, label='Ã¿Ìì³öÇÚÈËÊı')
+        workloadText = wx.StaticText(self, label='æ¯å¤©å‡ºå‹¤äººæ•°'.decode('utf-8', 'ignore'))
         sizer.Add(workloadText, pos=(0, 4), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        self.workloadInput = wx.TextCtrl(self, value='3', style=wx.TE_PROCESS_ENTER)
+        self.workloadInput = wx.TextCtrl(self, value='12', style=wx.TE_PROCESS_ENTER)
         sizer.Add(self.workloadInput, pos=(0, 5),
                   flag=wx.TOP | wx.LEFT, border=12)
 
-        minWorkDays = wx.StaticText(self, label='×îĞ¡Á¬Ğø³öÇÚÌìÊı')
+        minWorkDays = wx.StaticText(self, label='æœ€å°è¿ç»­å‡ºå‹¤å¤©æ•°'.decode('utf-8', 'ignore'))
         sizer.Add(minWorkDays, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.minWorkDaysInput = wx.TextCtrl(self, value='3', style=wx.TE_PROCESS_ENTER)
         sizer.Add(self.minWorkDaysInput, pos=(1, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
-        maxWorkDaysText = wx.StaticText(self, label='×î´óÁ¬Ğø³öÇÚÌìÊı')
+        maxWorkDaysText = wx.StaticText(self, label='æœ€å¤§è¿ç»­å‡ºå‹¤å¤©æ•°'.decode('utf-8', 'ignore'))
         sizer.Add(maxWorkDaysText, pos=(1, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        self.maxWorkDaysInput = wx.TextCtrl(self, value='5', style=wx.TE_PROCESS_ENTER)
+        self.maxWorkDaysInput = wx.TextCtrl(self, value='6', style=wx.TE_PROCESS_ENTER)
         sizer.Add(self.maxWorkDaysInput, pos=(1, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
@@ -75,8 +76,6 @@ class SellerPanel(wx.Panel):
         self.data.InsertRows(list())
         self.grid = wx.grid.Grid(self, size=(300, 300))
         self.grid.SetTable(self.data)
-        self.grid.SetColLabelValue(0, 'Ô±¹¤ºÅ')
-        self.grid.SetColLabelValue(1, '×Ü³öÇÚÌìÊı')
         self.grid.AutoSize()
         sizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP, border=5)
 
@@ -87,7 +86,7 @@ class SellerPanel(wx.Panel):
         self.grid1.AutoSize()
         sizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP, border=5)
 
-        self.searchBtn = wx.Button(self, label='¿ªÊ¼ÅÅ°à', size=(100, 20))
+        self.searchBtn = wx.Button(self, label='å¼€å§‹æ’ç­'.decode('utf-8', 'ignore'), size=(100, 20))
         sizer.Add(self.searchBtn, pos=(2, 3))
         self.searchBtn.Enable(True)
         self.Bind(wx.EVT_BUTTON, self.onSchedule, self.searchBtn)
@@ -120,14 +119,12 @@ class SellerPanel(wx.Panel):
 
         if scheduleResult.message.strip() != '':
             wx.MessageBox(scheduleResult.message.decode('utf-8', 'ignore'))
-        else:
-            wx.MessageBox("ÅÅ°à³É¹¦")
 
         result = list()
-        for keyValuePair in sorted(scheduleResult.calendar.iteritems(), key=lambda d: d[0]):
+        for keyValuePair in sorted(scheduleResult.workCalendar.iteritems(), key=lambda d: d[0]):
             result.append([keyValuePair[0],
                            "    ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))),
-                           "ĞİÏ¢Ãûµ¥"
+                           "    ".join(map(str, map(lambda index: workers[index], scheduleResult.restCalendar[keyValuePair[0]])))
                            ])
         self.updateGrid1(result)
 
@@ -144,15 +141,15 @@ class SellerPanel(wx.Panel):
         #     maxRestDay = int(self.minWorkDaysInput.GetValue()) + 1
         #     workers = len(self.data._data)
         #     if (maxRestDay * workload) < workers:
-        #         wx.MessageBox("ÊäÈë²ÎÊı´íÎó£¬ÅÅ°àÌìÊı * £¨ĞİÏ¢ÌìÊı + 1£©±ØĞë´óÓÚµÈÓÚ×ÜÔ±¹¤Êı")
+        #         wx.MessageBox("è¾“å…¥å‚æ•°é”™è¯¯ï¼Œæ’ç­å¤©æ•° * ï¼ˆä¼‘æ¯å¤©æ•° + 1ï¼‰å¿…é¡»å¤§äºç­‰äºæ€»å‘˜å·¥æ•°")
         #         return False
         # except:
-        #     wx.MessageBox("ÊäÈë²ÎÊı´íÎó£¬Çë¼ì²é")
+        #     wx.MessageBox("è¾“å…¥å‚æ•°é”™è¯¯ï¼Œè¯·æ£€æŸ¥")
         #     return False
         return True
 
     def onImport(self, evt):
-        dialog = wx.FileDialog(self, "Ñ¡ÔñÒªµ¼ÈëµÄÊı¾İÎÄ¼ş", os.getcwd(), style=wx.OPEN, wildcard="*.txt")
+        dialog = wx.FileDialog(self, "é€‰æ‹©è¦å¯¼å…¥çš„æ•°æ®æ–‡ä»¶".decode('utf-8', 'ignore'), os.getcwd(), style=wx.OPEN, wildcard="*.txt")
         if dialog.ShowModal() == wx.ID_OK:
             self.onFileRead(dialog.GetPath())
             # self.SetTitle(self.filename)
@@ -163,6 +160,6 @@ class SellerPanel(wx.Panel):
             # try:
             lines = DailyDataDAL.readAll(filePath)
             self.updateGrid(lines)
-            wx.MessageBox("µ¼ÈëÊı¾İ³É¹¦" + ' '.join(lines), "µ¼ÈëÊı¾İ", style=wx.OK | wx.ICON_EXCLAMATION)
+            wx.MessageBox("å¯¼å…¥æ•°æ®æˆåŠŸ" + ' '.join(lines), "å¯¼å…¥æ•°æ®", style=wx.OK | wx.ICON_EXCLAMATION)
             # except:
-            #     wx.MessageBox("µ¼ÈëÊı¾İÊ§°Ü£¬Çë¼ì²âÊı¾İ¸ñÊ½", "µ¼ÈëÊı¾İ", style=wx.OK | wx.ICON_EXCLAMATION)
+            #     wx.MessageBox("å¯¼å…¥æ•°æ®å¤±è´¥ï¼Œè¯·æ£€æµ‹æ•°æ®æ ¼å¼", "å¯¼å…¥æ•°æ®", style=wx.OK | wx.ICON_EXCLAMATION)
