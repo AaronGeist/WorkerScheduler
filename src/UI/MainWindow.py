@@ -22,7 +22,6 @@ class MainWindow(wx.Frame):
 
     def __init__(self, parent, title):
         super(MainWindow, self).__init__(parent, title=title, size=(800, 600))
-        SystemInitializer.initialize()
         self.initUI()
         self.Show(True)
 

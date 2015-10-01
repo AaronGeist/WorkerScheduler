@@ -1,5 +1,6 @@
 import os
 from src.Strategy.Scheduler import Scheduler
+from src.UI.ScheduleData import ScheduleData
 
 __author__ = 'yzhou7'
 
@@ -51,17 +52,17 @@ class SellerPanel(wx.Panel):
                   flag=wx.TOP | wx.LEFT, border=12)
 
         minWorkDays = wx.StaticText(self, label='最小连续出勤天数')
-        sizer.Add(minWorkDays, pos=(0, 6), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        sizer.Add(minWorkDays, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.minWorkDaysInput = wx.TextCtrl(self, value='3', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.minWorkDaysInput, pos=(0, 7),
+        sizer.Add(self.minWorkDaysInput, pos=(1, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         maxWorkDaysText = wx.StaticText(self, label='最大连续出勤天数')
-        sizer.Add(maxWorkDaysText, pos=(0, 8), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        sizer.Add(maxWorkDaysText, pos=(1, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.maxWorkDaysInput = wx.TextCtrl(self, value='5', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.maxWorkDaysInput, pos=(0, 9),
+        sizer.Add(self.maxWorkDaysInput, pos=(1, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         self.vBox.Add(sizer, wx.ALIGN_TOP | wx.ALIGN_LEFT, 10)
@@ -71,15 +72,15 @@ class SellerPanel(wx.Panel):
 
         # set data into data grid
         self.data = UserGridData()
-        self.workers = range(1, int(self.workerNumInput.GetValue()) + 2)
-        self.data.InsertRows(self.workers)
-        self.grid = wx.grid.Grid(self, size=(200, 100))
+        self.data.InsertRows(list())
+        self.grid = wx.grid.Grid(self, size=(300, 300))
         self.grid.SetTable(self.data)
+        self.grid.SetColLabelValue(0, '员工号')
+        self.grid.SetColLabelValue(1, '总出勤天数')
         self.grid.AutoSize()
         sizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP, border=5)
 
-        self.data1 = UserGridData()
-        self.data1._cols = ['出勤人员名单']
+        self.data1 = ScheduleData()
         self.data1.InsertRows(list())
         self.grid1 = wx.grid.Grid(self, size=(400, 300))
         self.grid1.SetTable(self.data1)
@@ -89,7 +90,7 @@ class SellerPanel(wx.Panel):
         self.searchBtn = wx.Button(self, label='开始排班', size=(100, 20))
         sizer.Add(self.searchBtn, pos=(2, 3))
         self.searchBtn.Enable(True)
-        self.Bind(wx.EVT_BUTTON, self.onSearchDate, self.searchBtn)
+        self.Bind(wx.EVT_BUTTON, self.onSchedule, self.searchBtn)
 
         sizer.AddGrowableRow(1)
         self.vBox.Add(sizer, wx.ALIGN_BOTTOM | wx.ALIGN_LEFT, 10)
@@ -100,7 +101,6 @@ class SellerPanel(wx.Panel):
         self.grid.SetTable(self.data)
         self.grid.AutoSize()
         self.vBox.Layout()
-        # wx.MessageBox("数据为" + ' '.join(self.data._data))
 
     def updateGrid1(self, rows):
         self.grid1.ClearGrid()
@@ -109,18 +109,34 @@ class SellerPanel(wx.Panel):
         self.grid1.AutoSize()
         self.vBox.Layout()
 
-    def onSearchDate(self, evt):
+    def onSchedule(self, evt):
+        workers = range(1, int(self.workerNumInput.GetValue()) + 1)
         if not self.checkInput():
             return
 
-        s = Scheduler(self.data._data, self.workloadInput.GetValue(), self.minWorkDaysInput.GetValue(), self.maxWorkDaysInput.GetValue())
-        data = s.schedule(self.tagetDaysInput.GetValue())
+        s = Scheduler(workers, self.workloadInput.GetValue(), self.minWorkDaysInput.GetValue(),
+                      self.maxWorkDaysInput.GetValue())
+        scheduleResult = s.schedule(self.tagetDaysInput.GetValue())
+
+        if scheduleResult.message.strip() != '':
+            wx.MessageBox(scheduleResult.message.decode('utf-8', 'ignore'))
+        else:
+            wx.MessageBox("排班成功")
 
         result = list()
-        for line in sorted(data.iteritems(), key=lambda d: d[0]):
-            result.append("    ".join(map(str, map(lambda index: self.workers[index], line[1]))))
+        for keyValuePair in sorted(scheduleResult.calendar.iteritems(), key=lambda d: d[0]):
+            result.append([keyValuePair[0],
+                           "    ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))),
+                           "休息名单"
+                           ])
         self.updateGrid1(result)
-        wx.MessageBox("排班成功")
+
+        personalTotalWorkDay = scheduleResult.personalTotalWorkDay
+        workDayData = list()
+
+        for i in range(0, len(workers)):
+            workDayData.append([workers[i], personalTotalWorkDay.get(i, 0)])
+        self.updateGrid(workDayData)
 
     def checkInput(self):
         # try:

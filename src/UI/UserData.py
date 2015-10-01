@@ -6,9 +6,21 @@ import wx.grid
 
 # Class to display user data in grid for a selected date
 class UserGridData(wx.grid.PyGridTableBase):
-    _cols = ["ÓÃ»§Ãû"]
-    _data = list()
-    _highlighted = set()
+
+    def __init__(self):
+        wx.grid.PyGridTableBase.__init__(self)
+        self._cols = ['', '']
+        self._data = list()
+        self._highlighted = set()
+    #
+    # def SetRowLableValue(self, row, value):
+    #     self._rows[row] = value
+    #
+    # def GetRowLabelValue(self, row):
+    #     return self._rows[row]
+
+    def SetColLabelValue(self, col, value):
+        self._cols[col] = value
 
     def GetColLabelValue(self, col):
         return self._cols[col]
@@ -20,10 +32,10 @@ class UserGridData(wx.grid.PyGridTableBase):
         return len(self._cols)
 
     def GetValue(self, row, col):
-        return self._data[row]
+        return self._data[row][col]
 
     def SetValue(self, row, col, val):
-        self._data[row] = val
+        self._data[row][col] = val
 
     def GetAttr(self, row, col, kind):
         attr = wx.grid.GridCellAttr()
