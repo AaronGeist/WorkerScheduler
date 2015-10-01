@@ -7,3 +7,4 @@ class ScheduleResult:
         self.workCalendar = dict()
         self.restCalendar = dict()
         self.personalTotalWorkDay = dict()
+        self.workStats = dict()
