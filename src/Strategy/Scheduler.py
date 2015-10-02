@@ -10,7 +10,7 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 200
+    MAX_RETRY_TIME = 1000
     # 保证基本公平，最多差值为delta*2
     MAX_DELTA_DAY = 1
 
@@ -222,7 +222,7 @@ class Scheduler:
             for (currentDate, workerList) in targetCalendar.items():
                 workerList = list(set(workerList))
                 if len(workerList) != self.workload:
-                    print 'date', currentDate, 'is not full'
+                    # print 'date', currentDate, 'is not full'
                     return False
 
                 for worker in workerList:
@@ -232,12 +232,12 @@ class Scheduler:
                         # 连续两天上班或第一天上班
                         stats.accumulatedWorkDay += 1
                         if stats.accumulatedWorkDay > self.maxWorkDay:
-                            print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
+                            # print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
                             return False
                     else:
                         # 中间有休息
                         if stats.accumulatedWorkDay < self.minWorkDay and currentDate != 1:
-                            print 'date', stats.previousDate, 'worker', worker, 'doesn\'t meet minWorkDay', self.minWorkDay
+                            # print 'date', stats.previousDate, 'worker', worker, 'doesn\'t meet minWorkDay', self.minWorkDay
                             return False
                         # 重置为1
                         stats.accumulatedWorkDay = 1
@@ -304,146 +304,106 @@ class Scheduler:
             for arrangedWorkDay in iterateOnlyArrangedWorkDay:
                 startDate = arrangedWorkDay.startDate
                 endDate = arrangedWorkDay.endDate
-                print 'start analysis worker', targetWorkerId, 'from', startDate, 'to', endDate
 
-                # 在前一天寻找可以替换的，换成自己
                 if startDate != 1:
+                    # 不是第一天，在前一天寻找可以替换的
                     for workerId in targetCalendar.get(startDate - 1, list()):
-                        # 不能增大，否则大于最大连续
-                        if endDate - startDate + 2 > self.maxWorkDay:
+                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId,
+                                                        targetCalendar, workerDayPerWorker):
                             break
-                        if targetWorkerId in targetCalendar.get(startDate - 1, list()):
-                            # 放止重复替换
-                            break
-                        if workerDayPerWorker[workerId] > targetTotalWorkDay + 1:
-                            # 不要把两个连续出勤连接成一个（或者继续检查连成一个后是否超最大）
-                            if targetWorkerId not in targetCalendar.get(startDate - 2, list()):
-                                if workerId not in targetCalendar.get(startDate, list()):
-                                    for innerPair in workStats[workerId].arrangedWorkDay:
-                                        targetStartDate = startDate - 1
-                                        if targetStartDate == innerPair.endDate:
-                                            # 防止缩短后小于最小连续天数
-                                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
-                                                continue
-                                            print 'start', startDate, 'end', endDate
-                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
-                                            targetCalendar[targetStartDate].remove(workerId)
-                                            targetCalendar[targetStartDate].append(targetWorkerId)
-                                            workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
-                                            workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
-                                            newInnerPair = innerPair
-                                            newInnerPair.endDate -= 1
-                                            workStats[workerId].arrangedWorkDay.remove(innerPair)
-                                            workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            for day in workStats[workerId].arrangedWorkDay:
-                                                if day.startDate == startDate and day.endDate:
-                                                    workStats[workerId].arrangedWorkDay.remove(day)
-                                                    break
-                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(targetStartDate, endDate))
 
-                                            print 'targetStartDate1', targetStartDate, 'old id', self.workers[
-                                                workerId], 'new id', self.workers[targetWorkerId]
-                                            startDate = targetStartDate
-                                            break
-                                elif workerId in targetCalendar.get(startDate - 1,
-                                                                    list()) and workerId not in targetCalendar.get(
-                                            startDate - 2, list()):
-                                    # 和当前id并存，并比当前ID早一天开始
-                                    for innerPair in workStats[workerId].arrangedWorkDay:
-                                        targetStartDate = startDate - 1
-                                        if targetStartDate == innerPair.startDate:
-                                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
-                                                continue
-                                            print 'start', startDate, 'end', endDate
-                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
-                                            targetCalendar[targetStartDate].remove(workerId)
-                                            targetCalendar[targetStartDate].append(targetWorkerId)
-                                            workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
-                                            workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
-                                            newInnerPair = innerPair
-                                            newInnerPair.startDate += 1
-                                            workStats[workerId].arrangedWorkDay.remove(innerPair)
-                                            workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            newArrangedWorkDay = arrangedWorkDay
-                                            newArrangedWorkDay.startDate = targetStartDate
-                                            for day in workStats[workerId].arrangedWorkDay:
-                                                if day.startDate == startDate and day.endDate:
-                                                    workStats[workerId].arrangedWorkDay.remove(day)
-                                                    break
-                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(targetStartDate, endDate))
-
-                                            print 'targetStartDate2', endDate + 1, 'old id', self.workers[
-                                                workerId], 'new id', self.workers[targetWorkerId]
-                                            startDate = targetStartDate
-                                            break
-
-                # 在后一天寻找可以替换的
+                        # 搜索目标员工的起止出勤日期
+                        for innerPair in workStats[workerId].arrangedWorkDay:
+                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
+                                # 缩短后小于最小连续天数
+                                continue
+                            targetStartDate = startDate - 1
+                            newInnerPair = innerPair
+                            doReplace = False
+                            if workerId not in targetCalendar.get(startDate, list()) \
+                                    and targetStartDate == innerPair.endDate:
+                                # 结束日期为源员工的起始日期减1，即两者相邻
+                                newInnerPair.endDate -= 1
+                                doReplace = True
+                            elif workerId in targetCalendar.get(startDate - 1,
+                                                                list()) and workerId not in targetCalendar.get(
+                                        startDate - 2, list()) \
+                                    and targetStartDate == innerPair.startDate:
+                                newInnerPair.startDate += 1
+                                doReplace = True
+                            if doReplace:
+                                self.doReplace(targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats,
+                                               innerPair, newInnerPair, startDate, endDate, targetStartDate, endDate, True)
+                                startDate = targetStartDate
+                                break
                 if endDate != targetDays:
+                    # 不是最后一天，在后一天寻找可以替换的
                     for workerId in targetCalendar.get(endDate + 1, list()):
-                        # 不能增大，否则大于最大连续
-                        if endDate - startDate + 2 > self.maxWorkDay:
+                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId,
+                                                        targetCalendar, workerDayPerWorker):
                             break
-                        if targetWorkerId in targetCalendar.get(endDate + 1, list()):
-                            # 放止重复替换
-                            break
-                        if workerDayPerWorker[workerId] > targetTotalWorkDay + 1:
-                            # 不要把两个连续出勤连接成一个（或者继续检查连成一个后是否超最大）
-                            if targetWorkerId not in targetCalendar.get(endDate + 2, list()):
-                                if workerId not in targetCalendar.get(endDate, list()):
-                                    for innerPair in workStats[workerId].arrangedWorkDay:
-                                        targetEndDate = endDate + 1
-                                        if targetEndDate == innerPair.startDate:
-                                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
-                                                continue
-                                            print 'start', startDate, 'end', endDate
-                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
-                                            targetCalendar[targetEndDate].remove(workerId)
-                                            targetCalendar[targetEndDate].append(targetWorkerId)
-                                            workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
-                                            workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
-                                            newInnerPair = innerPair
-                                            newInnerPair.startDate += 1
-                                            workStats[workerId].arrangedWorkDay.remove(innerPair)
-                                            workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            for day in workStats[workerId].arrangedWorkDay:
-                                                if day.startDate == startDate and day.endDate:
-                                                    workStats[workerId].arrangedWorkDay.remove(day)
-                                                    break
-                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(startDate, targetEndDate))
-                                            print 'targetEndDate1', targetEndDate, 'old id', self.workers[
-                                                workerId], 'new id', self.workers[targetWorkerId]
-                                            endDate = targetEndDate
-                                            break
-                                elif workerId in targetCalendar.get(endDate + 1,
-                                                                    list()) and workerId not in targetCalendar.get(
-                                            endDate + 2, list()):
-                                    # 和当前id并存，并比当前ID多一天
-                                    for innerPair in workStats[workerId].arrangedWorkDay:
-                                        targetEndDate = endDate + 1
-                                        if targetEndDate == innerPair.endDate:
-                                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
-                                                continue
-                                            print 'start', startDate, 'end', endDate
-                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
-                                            targetCalendar[targetEndDate].remove(workerId)
-                                            targetCalendar[targetEndDate].append(targetWorkerId)
-                                            workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
-                                            workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
-                                            newInnerPair = innerPair
-                                            newInnerPair.endDate -= 1
-                                            workStats[workerId].arrangedWorkDay.remove(innerPair)
-                                            workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            for day in workStats[workerId].arrangedWorkDay:
-                                                if day.startDate == startDate and day.endDate:
-                                                    workStats[workerId].arrangedWorkDay.remove(day)
-                                                    break
-                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(startDate, targetEndDate))
-                                            print 'targetEndDate2', endDate + 1, 'old id', self.workers[
-                                                workerId], 'new id', self.workers[targetWorkerId]
-                                            endDate = targetEndDate
-                                            break
+
+                        # 搜索目标员工的起止出勤日期
+                        for innerPair in workStats[workerId].arrangedWorkDay:
+                            if innerPair.endDate - innerPair.startDate < self.minWorkDay:
+                                continue
+                            targetEndDate = endDate + 1
+                            newInnerPair = innerPair
+                            doReplace = False
+
+                            if workerId not in targetCalendar.get(endDate, list()) \
+                                    and targetEndDate == innerPair.startDate:
+                                newInnerPair.startDate += 1
+                                doReplace = True
+                            elif workerId in targetCalendar.get(endDate + 1,
+                                                                list()) and workerId not in targetCalendar.get(
+                                        endDate + 2, list()) \
+                                    and targetEndDate == innerPair.endDate:
+                                newInnerPair.endDate -= 1
+                                doReplace = True
+
+                            if doReplace:
+                                self.doReplace(targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats,
+                                               innerPair, newInnerPair, startDate, endDate, startDate, targetEndDate, False)
+                                endDate = targetEndDate
+                                break
 
         return targetCalendar
+
+    def isValidateToReplace(self, startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId, targetCalendar,
+                            workerDayPerWorker):
+        if endDate - startDate + 2 > self.maxWorkDay:
+            # 不能增大，否则大于最大连续天数
+            return False
+        if targetWorkerId in targetCalendar.get(startDate - 1, list()):
+            # 放止同一天出现同一个员工
+            return False
+        if workerDayPerWorker[workerId] < targetTotalWorkDay:
+            # 要被减少天数的员工工时不高于平均工时
+            return False
+        if targetWorkerId in targetCalendar.get(startDate - 2, list()):
+            # 不要把两个连续出勤连接成一个（或者继续检查连成一个后是否超最大）
+            return False
+        return True
+
+    def doReplace(self, targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats, innerPair,
+                  newInnerPair, startDate, endDate, newStartDate, newEndDate, replaceStart):
+        if replaceStart:
+            targetDate = newStartDate
+        else:
+            targetDate = newEndDate
+        targetCalendar[targetDate].remove(workerId)
+        targetCalendar[targetDate].append(targetWorkerId)
+        workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
+        workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
+        workStats[workerId].arrangedWorkDay.remove(innerPair)
+        workStats[workerId].arrangedWorkDay.append(newInnerPair)
+        for day in workStats[workerId].arrangedWorkDay:
+            if day.startDate == startDate and day.endDate == endDate:
+                workStats[workerId].arrangedWorkDay.remove(day)
+                break
+        workStats[targetWorkerId].arrangedWorkDay.append(
+            ArrangedWorkDay(newStartDate, newStartDate))
 
 
 if __name__ == "__main__":
