@@ -1,5 +1,6 @@
 # coding=utf-8
 import random
+import math
 from src.Data.WorkerStats import WorkerStats, ArrangedWorkDay
 from src.Data.ScheduleResult import ScheduleResult
 
@@ -10,7 +11,7 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 1000
+    MAX_RETRY_TIME = 100
     # 保证基本公平，最多差值为delta*2
     MAX_DELTA_DAY = 1
 
@@ -62,6 +63,7 @@ class Scheduler:
         while retryCnt < self.MAX_RETRY_TIME:
             retryCnt += 1
             [resultCalendar, workStats] = self.doSchedule(targetDays)
+            # self.printSchedule(resultCalendar)
             if self.validateSchedule(resultCalendar):
                 currentDelta = self.getMaxDelta(resultCalendar, targetDays)
                 if currentDelta <= self.MAX_DELTA_DAY:
@@ -103,6 +105,7 @@ class Scheduler:
             #     scheduleResult.restCalendar = self.getRestCalendar(unBalancedResult)
             #     # scheduleResult.workStats = unBalancedWorkStats
         else:
+            print 'empty unbalanceResult'
             scheduleResult.message = '没有找到符合条件的排班方案，请调整参数'
         return scheduleResult
 
@@ -124,8 +127,19 @@ class Scheduler:
         for i in range(0, workerNum):
             workerStats[i] = WorkerStats(i, targetTotalWorkDay)
 
+        # 分析哪些员工平均情况下不能轮到最后一轮
+        estimatedWorkDayEachPersonPerDay = float(self.maxWorkDay + self.minWorkDay) / 2
+        estimatedRound = float(self.workload * targetDays) / (estimatedWorkDayEachPersonPerDay * workerNum)
+        # 这个id之后的员工可能不能轮到最后一轮分配
+        maxWorkerIdCoverAllRound = int(math.floor(workerNum * (estimatedRound - math.floor(estimatedRound))))
+        # print 'estimatedRound', estimatedRound, 'maxWorkerIdCoverAllRound', maxWorkerIdCoverAllRound
+
+
         stopFlag = False
         while not stopFlag:
+            # 上一轮的平均剩余工时
+            workDayLeftList = map(lambda stats: stats.workDayLeft, workerStats.values())
+            avgWorkDayLeft = float(sum(workDayLeftList)) / len(workDayLeftList)
             # 遍历每个worker，安排工作日期
             for index in range(0, workerNum):
                 if workerStats[index].workDayLeft <= 0:
@@ -153,7 +167,20 @@ class Scheduler:
                 # 在最大连续和最小连续之间随机选数
                 randomWorkDay = random.randint(self.minWorkDay, self.maxWorkDay)
 
-                # print "current worker", index, "current day", firstTargetDate, 'workday length', randomWorkDay
+                # 优化随机数，如果预测到该员工不能轮到最后一轮，则适当增加
+                if index > maxWorkerIdCoverAllRound:
+                    randomWorkDay = random.randint((self.minWorkDay + self.maxWorkDay) / 2, self.maxWorkDay)
+
+                # 优化随机数，如果当前员工剩余天数与上一轮结束后的剩余天数平均值有偏差，则适当修正
+                workDayLeft = float(workerStats[index].workDayLeft)
+                delta = int(avgWorkDayLeft - workDayLeft)
+                if abs(delta) >= 2:
+                    # 差值大于2时才修正
+                    randomWorkDay -= delta
+                    if randomWorkDay > self.maxWorkDay:
+                        randomWorkDay = self.maxWorkDay
+                    elif randomWorkDay < self.minWorkDay:
+                        randomWorkDay = self.minWorkDay
 
                 # 找到最早的没有安排该员工工作，且没有满员的日期
                 while firstTargetDate <= targetDays:
@@ -222,7 +249,7 @@ class Scheduler:
             for (currentDate, workerList) in targetCalendar.items():
                 workerList = list(set(workerList))
                 if len(workerList) != self.workload:
-                    # print 'date', currentDate, 'is not full'
+                    print 'date', currentDate, 'is not full'
                     return False
 
                 for worker in workerList:
@@ -232,12 +259,12 @@ class Scheduler:
                         # 连续两天上班或第一天上班
                         stats.accumulatedWorkDay += 1
                         if stats.accumulatedWorkDay > self.maxWorkDay:
-                            # print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
+                            print "date", currentDate, "worker", worker, "exceed max work day", self.maxWorkDay
                             return False
                     else:
                         # 中间有休息
                         if stats.accumulatedWorkDay < self.minWorkDay and currentDate != 1:
-                            # print 'date', stats.previousDate, 'worker', worker, 'doesn\'t meet minWorkDay', self.minWorkDay
+                            print 'date', stats.previousDate, 'worker', worker, 'doesn\'t meet minWorkDay', self.minWorkDay
                             return False
                         # 重置为1
                         stats.accumulatedWorkDay = 1
@@ -308,8 +335,9 @@ class Scheduler:
                 if startDate != 1:
                     # 不是第一天，在前一天寻找可以替换的
                     for workerId in targetCalendar.get(startDate - 1, list()):
-                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId,
-                                                        targetCalendar, workerDayPerWorker):
+                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId,
+                                                        targetWorkerId,
+                                                        targetCalendar, workerDayPerWorker, True):
                             break
 
                         # 搜索目标员工的起止出勤日期
@@ -333,14 +361,16 @@ class Scheduler:
                                 doReplace = True
                             if doReplace:
                                 self.doReplace(targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats,
-                                               innerPair, newInnerPair, startDate, endDate, targetStartDate, endDate, True)
+                                               innerPair, newInnerPair, startDate, endDate, targetStartDate, endDate,
+                                               True)
                                 startDate = targetStartDate
                                 break
                 if endDate != targetDays:
                     # 不是最后一天，在后一天寻找可以替换的
                     for workerId in targetCalendar.get(endDate + 1, list()):
-                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId,
-                                                        targetCalendar, workerDayPerWorker):
+                        if not self.isValidateToReplace(startDate, endDate, targetTotalWorkDay, workerId,
+                                                        targetWorkerId,
+                                                        targetCalendar, workerDayPerWorker, False):
                             break
 
                         # 搜索目标员工的起止出勤日期
@@ -364,26 +394,34 @@ class Scheduler:
 
                             if doReplace:
                                 self.doReplace(targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats,
-                                               innerPair, newInnerPair, startDate, endDate, startDate, targetEndDate, False)
+                                               innerPair, newInnerPair, startDate, endDate, startDate, targetEndDate,
+                                               False)
                                 endDate = targetEndDate
                                 break
 
         return targetCalendar
 
     def isValidateToReplace(self, startDate, endDate, targetTotalWorkDay, workerId, targetWorkerId, targetCalendar,
-                            workerDayPerWorker):
+                            workerDayPerWorker, replaceStart):
         if endDate - startDate + 2 > self.maxWorkDay:
             # 不能增大，否则大于最大连续天数
             return False
-        if targetWorkerId in targetCalendar.get(startDate - 1, list()):
+        if replaceStart:
+            targetDate = startDate - 1
+            siblingTargetDate = startDate - 2
+        else:
+            targetDate = endDate + 1
+            siblingTargetDate = endDate + 2
+        if targetWorkerId in targetCalendar.get(targetDate, list()):
             # 放止同一天出现同一个员工
+            return False
+        if targetWorkerId in targetCalendar.get(siblingTargetDate, list()):
+            # 不要把两个连续出勤连接成一个（或者继续检查连成一个后是否超最大）
             return False
         if workerDayPerWorker[workerId] < targetTotalWorkDay:
             # 要被减少天数的员工工时不高于平均工时
             return False
-        if targetWorkerId in targetCalendar.get(startDate - 2, list()):
-            # 不要把两个连续出勤连接成一个（或者继续检查连成一个后是否超最大）
-            return False
+
         return True
 
     def doReplace(self, targetCalendar, workerId, targetWorkerId, workerDayPerWorker, workStats, innerPair,
@@ -413,8 +451,14 @@ if __name__ == "__main__":
     # targetDays = 20
     # s.schedule(targetDays)
 
-    workerNum = 20
-    s = Scheduler(range(1, workerNum + 1), 12, 3, 7)
+    # workerNum = 20
+    # s = Scheduler(range(1, workerNum + 1), 14, 3, 8)
+    #
+    # targetDays = 26
+    # s.schedule(targetDays)
 
-    targetDays = 30
+    workerNum = 20
+    s = Scheduler(range(1, workerNum + 1), 12, 3, 8)
+
+    targetDays = 26
     s.schedule(targetDays)

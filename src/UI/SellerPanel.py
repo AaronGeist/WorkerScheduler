@@ -2,6 +2,7 @@
 import os
 from src.Strategy.Scheduler import Scheduler
 from src.UI.ScheduleData import ScheduleData
+from src.Util.TimeUtil import TimeUtil
 
 __author__ = 'yzhou7'
 
@@ -66,6 +67,27 @@ class SellerPanel(wx.Panel):
         sizer.Add(self.maxWorkDaysInput, pos=(1, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
+        startDate = wx.StaticText(self, label='开始日期'.decode('utf-8', 'ignore'))
+        sizer.Add(startDate, pos=(2, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+
+        self.startDateInput= wx.TextCtrl(self, value=TimeUtil.getToday(), style=wx.TE_PROCESS_ENTER)
+        self.Bind(wx.EVT_TEXT, self.OnEnterDate, self.startDateInput)
+        sizer.Add(self.startDateInput, pos=(2, 1),
+                  flag=wx.TOP | wx.LEFT, border=12)
+
+        endDate = wx.StaticText(self, label='结束日期'.decode('utf-8', 'ignore'))
+        sizer.Add(endDate, pos=(2, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+
+        self.endDateInput = wx.TextCtrl(self, value=TimeUtil.getToday(), style=wx.TE_PROCESS_ENTER)
+        self.Bind(wx.EVT_TEXT, self.OnEnterDate, self.endDateInput)
+        sizer.Add(self.endDateInput, pos=(2, 3),
+                  flag=wx.TOP | wx.LEFT, border=12)
+
+        self.warnMsg = wx.StaticText(self, label='非法日期，请重新输入'.decode('utf-8', 'ignore'))
+        self.warnMsg.SetForegroundColour('red')
+        sizer.Add(self.warnMsg, pos=(2, 4), flag=wx.TOP | wx.LEFT, border=15)
+        self.warnMsg.Hide()
+
         self.vBox.Add(sizer, wx.ALIGN_TOP | wx.ALIGN_LEFT, 10)
 
     def displayTodayData(self):
@@ -86,12 +108,13 @@ class SellerPanel(wx.Panel):
         self.grid1.AutoSize()
         sizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP, border=5)
 
-        self.searchBtn = wx.Button(self, label='开始排班'.decode('utf-8', 'ignore'), size=(100, 20))
-        sizer.Add(self.searchBtn, pos=(2, 3))
-        self.searchBtn.Enable(True)
-        self.Bind(wx.EVT_BUTTON, self.onSchedule, self.searchBtn)
+        self.scheduleBtn = wx.Button(self, label='开始排班'.decode('utf-8', 'ignore'), size=(100, 20))
+        sizer.Add(self.scheduleBtn, pos=(2, 3))
+        self.scheduleBtn.Enable(True)
+        self.Bind(wx.EVT_BUTTON, self.onSchedule, self.scheduleBtn)
 
         sizer.AddGrowableRow(1)
+        sizer.AddGrowableCol(2)
         self.vBox.Add(sizer, wx.ALIGN_BOTTOM | wx.ALIGN_LEFT, 10)
 
     def updateGrid(self, rows):
@@ -147,6 +170,17 @@ class SellerPanel(wx.Panel):
         #     wx.MessageBox("输入参数错误，请检查")
         #     return False
         return True
+
+    def OnEnterDate(self, evt):
+        if TimeUtil.isValidDate(self.startDateInput.GetValue()) \
+                and TimeUtil.isValidDate(self.endDateInput.GetValue()):
+            self.warnMsg.Hide()
+            self.scheduleBtn.Enable(True)
+        else:
+            self.warnMsg.Show()
+            # re-layout
+            self.vBox.Layout()
+            self.scheduleBtn.Enable(False)
 
     def onImport(self, evt):
         dialog = wx.FileDialog(self, "选择要导入的数据文件".decode('utf-8', 'ignore'), os.getcwd(), style=wx.OPEN, wildcard="*.txt")
