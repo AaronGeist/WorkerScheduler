@@ -10,7 +10,7 @@ class UserGridData(wx.grid.PyGridTableBase):
 
     def __init__(self):
         wx.grid.PyGridTableBase.__init__(self)
-        self._cols = ['员工号'.decode('utf-8', 'ignore'), '总出勤天数'.decode('utf-8', 'ignore')]
+        self._cols = [u'员工号', u'总出勤天数']
         self._data = list()
         self._highlighted = set()
     #

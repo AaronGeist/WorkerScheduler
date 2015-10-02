@@ -1,8 +1,13 @@
+# coding=utf-8
 __author__ = 'yzhou7'
 
+import sys
 import wx
 from src.UI.MainWindow import MainWindow
 
+# reload(sys)
+# sys.setdefaultencoding('utf-8')
+
 app = wx.App(False)
-frame = MainWindow(None, 'ÅÅ°àÖúÊÖV1')
+frame = MainWindow(None, u'æ’ç­åŠ©æ‰‹V1')
 app.MainLoop()

@@ -1,3 +1,4 @@
+# coding=utf-8
 import os
 from src.DAL.DailyDataDAL import DailyDataDAL
 from src.Util.TimeUtil import TimeUtil
@@ -18,7 +19,7 @@ from src.SystemInitializer import SystemInitializer
 # 3. clean up out-of-data data
 
 class MainWindow(wx.Frame):
-    '''¶¨ÒåÒ»¸ö´°¿ÚÀà'''
+    '''å®šä¹‰ä¸€ä¸ªçª—å£ç±»'''
 
     def __init__(self, parent, title):
         super(MainWindow, self).__init__(parent, title=title, size=(800, 600))
@@ -37,14 +38,14 @@ class MainWindow(wx.Frame):
         menubar = wx.MenuBar()
         menufile = wx.Menu()
 
-        # mnuclear = menufile.Append(wx.ID_CLEAR, 'ÇåÀí¹ıÆÚÊı¾İ', 'ÇåÀí¹ıÆÚÊı¾İ')
-        # mnuimport = menufile.Append(wx.ID_ADD, 'µ¼ÈëÊı¾İ', 'µ¼ÈëÖÆ¶¨ÎÄ¼ş¸ñÊ½µÄÊı¾İ')
-        # mnuabout = menufile.Append(wx.ID_ABOUT, '¹ØÓÚ', '¹ØÓÚ±¾³ÌĞò')
-        mnuexit = menufile.Append(wx.ID_EXIT, 'ÍË³ö', 'ÍË³ö³ÌĞò')
+        # mnuclear = menufile.Append(wx.ID_CLEAR, 'æ¸…ç†è¿‡æœŸæ•°æ®', 'æ¸…ç†è¿‡æœŸæ•°æ®')
+        # mnuimport = menufile.Append(wx.ID_ADD, 'å¯¼å…¥æ•°æ®', 'å¯¼å…¥åˆ¶å®šæ–‡ä»¶æ ¼å¼çš„æ•°æ®')
+        # mnuabout = menufile.Append(wx.ID_ABOUT, 'å…³äº', 'å…³äºæœ¬ç¨‹åº')
+        mnuexit = menufile.Append(wx.ID_EXIT, u'é€€å‡º', u'é€€å‡ºç¨‹åº')
 
-        # TODO Êı¾İÕûÀí
+        # TODO æ•°æ®æ•´ç†
 
-        menubar.Append(menufile, 'ÎÄ¼ş')
+        menubar.Append(menufile, u'æ–‡ä»¶')
 
         # self.Bind(wx.EVT_MENU, self.onImport, mnuimport)
         # self.Bind(wx.EVT_MENU, self.onClear, mnuclear)
@@ -57,21 +58,21 @@ class MainWindow(wx.Frame):
 
         nb = wx.Notebook(self)
         # self.buyerPanel = BuyerPanel(nb)
-        # nb.AddPage(self.buyerPanel, "ÖÇÄÜÅÅ°à", select=True)
-        nb.AddPage(SellerPanel(nb), 'ÖÇÄÜÅÅ°àËã·¨ÑİÊ¾')
+        # nb.AddPage(self.buyerPanel, "æ™ºèƒ½æ’ç­", select=True)
+        nb.AddPage(SellerPanel(nb), u'æ™ºèƒ½æ’ç­ç®—æ³•æ¼”ç¤º')
 
     def onAbout(self, evt):
-        '''µã»÷aboutµÄÊÂ¼şÏìÓ¦'''
-        dlg = wx.MessageDialog(self, 'Î¢ĞÅºÅshakazxx', '¹ØÓÚ', wx.OK)
+        '''ç‚¹å‡»aboutçš„äº‹ä»¶å“åº”'''
+        dlg = wx.MessageDialog(self, u'å¾®ä¿¡å·shakazxx', u'å…³äº', wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 
     def onExit(self, evt):
-        '''µã»÷ÍË³ö'''
+        '''ç‚¹å‡»é€€å‡º'''
         self.Close(True)
 
     def onImport(self, evt):
-        dialog = wx.FileDialog(self, "Ñ¡ÔñÒªµ¼ÈëµÄÊı¾İÎÄ¼ş", os.getcwd(), style=wx.OPEN, wildcard="*.txt")
+        dialog = wx.FileDialog(self, u"é€‰æ‹©è¦å¯¼å…¥çš„æ•°æ®æ–‡ä»¶", os.getcwd(), style=wx.OPEN, wildcard="*.txt")
         if dialog.ShowModal() == wx.ID_OK:
             self.onFileRead(dialog.GetPath())
             # self.SetTitle(self.filename)
@@ -87,9 +88,9 @@ class MainWindow(wx.Frame):
                 newDailyData = DailyDataDAL.fetchAllByDate(TimeUtil.getToday())
                 self.buyerPanel.updateGrid(newDailyData.toStringList())
 
-                wx.MessageBox("µ¼ÈëÊı¾İ³É¹¦", "µ¼ÈëÊı¾İ", style=wx.OK | wx.ICON_EXCLAMATION)
+                wx.MessageBox(u"å¯¼å…¥æ•°æ®æˆåŠŸ", u"å¯¼å…¥æ•°æ®", style=wx.OK | wx.ICON_EXCLAMATION)
             except:
-                wx.MessageBox("µ¼ÈëÊı¾İÊ§°Ü£¬Çë¼ì²âÊı¾İ¸ñÊ½", "µ¼ÈëÊı¾İ", style=wx.OK | wx.ICON_EXCLAMATION)
+                wx.MessageBox(u"å¯¼å…¥æ•°æ®å¤±è´¥ï¼Œè¯·æ£€æµ‹æ•°æ®æ ¼å¼", u"å¯¼å…¥æ•°æ®", style=wx.OK | wx.ICON_EXCLAMATION)
 
     def onClear(self, evt):
         pass
