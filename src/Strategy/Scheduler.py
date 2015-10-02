@@ -10,7 +10,7 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 2000
+    MAX_RETRY_TIME = 200
     # 保证基本公平，最多差值为delta*2
     MAX_DELTA_DAY = 1
 
@@ -82,26 +82,26 @@ class Scheduler:
 
         print 'fail to schedule after', self.MAX_RETRY_TIME, 'retries'
         if unBalancedResult:
-            # print 'before rebalance'
-            # print self.calculateWorkDayPerWorker(unBalancedResult)
-            # self.printSchedule(unBalancedResult)
+            print 'before rebalance'
+            print self.calculateWorkDayPerWorker(unBalancedResult)
+            self.printSchedule(unBalancedResult)
             newUnBalancedResult = self.rebalance(unBalancedResult, unBalancedWorkStats)
-            # print 'revalidate', self.validateSchedule(newUnBalancedResult)
-            # print 'after rebalance'
-            # print self.calculateWorkDayPerWorker(newUnBalancedResult)
-            # self.printSchedule(newUnBalancedResult)
-            if (self.validateSchedule(newUnBalancedResult)):
-                scheduleResult.message = '排班成功但没有找到工时最平均方案'
-                scheduleResult.workCalendar = newUnBalancedResult
-                scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(newUnBalancedResult)
-                scheduleResult.restCalendar = self.getRestCalendar(newUnBalancedResult)
-                # scheduleResult.workStats = unBalancedWorkStats
-            else:
-                scheduleResult.message = '尝试重新平衡化工时失败，如果不满意请重试'
-                scheduleResult.workCalendar = unBalancedResult
-                scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(unBalancedResult)
-                scheduleResult.restCalendar = self.getRestCalendar(unBalancedResult)
-                # scheduleResult.workStats = unBalancedWorkStats
+            print 'revalidate', self.validateSchedule(newUnBalancedResult)
+            print 'after rebalance'
+            print self.calculateWorkDayPerWorker(newUnBalancedResult)
+            self.printSchedule(newUnBalancedResult)
+            # if (self.validateSchedule(newUnBalancedResult)):
+            #     scheduleResult.message = '排班成功但没有找到工时最平均方案'
+            #     scheduleResult.workCalendar = newUnBalancedResult
+            #     scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(newUnBalancedResult)
+            #     scheduleResult.restCalendar = self.getRestCalendar(newUnBalancedResult)
+            #     # scheduleResult.workStats = unBalancedWorkStats
+            # else:
+            #     scheduleResult.message = '尝试重新平衡化工时失败，如果不满意请重试'
+            #     scheduleResult.workCalendar = unBalancedResult
+            #     scheduleResult.personalTotalWorkDay = self.calculateWorkDayPerWorker(unBalancedResult)
+            #     scheduleResult.restCalendar = self.getRestCalendar(unBalancedResult)
+            #     # scheduleResult.workStats = unBalancedWorkStats
         else:
             scheduleResult.message = '没有找到符合条件的排班方案，请调整参数'
         return scheduleResult
@@ -185,6 +185,10 @@ class Scheduler:
                     stopFlag = True
                     break
 
+                # 如果到末尾了，且连续天数小于最大连续天数，则一起安排了
+                if targetDays - firstTargetDate + 1 <= self.maxWorkDay:
+                    randomWorkDay = targetDays - firstTargetDate + 1
+
                 # 开始日期已经找到，安排工作
                 for i in range(0, randomWorkDay):
                     workerList = targetCalendar.get(firstTargetDate + i, list())
@@ -193,7 +197,6 @@ class Scheduler:
 
                 stats = workerStats.get(index)
                 stats.workDayLeft = max(0, stats.workDayLeft - randomWorkDay)
-                # TODO should use this data
                 stats.arrangedWorkDay.append(
                     ArrangedWorkDay(firstTargetDate, min(firstTargetDate + randomWorkDay - 1, targetDays)))
 
@@ -225,9 +228,6 @@ class Scheduler:
                 for worker in workerList:
                     stats = workerStats.get(worker, WorkerStats(worker, 0))
 
-                    # print '1 current date', currentDate, 'worker', worker,'prevDate', stats.previousDate, 'accumulate',\
-                    #             stats.accumulatedWorkDay
-
                     if currentDate == (stats.previousDate + 1) or stats.previousDate == -1:
                         # 连续两天上班或第一天上班
                         stats.accumulatedWorkDay += 1
@@ -237,7 +237,7 @@ class Scheduler:
                     else:
                         # 中间有休息
                         if stats.accumulatedWorkDay < self.minWorkDay and currentDate != 1:
-                            print 'worker', worker, 'date', currentDate, 'doesn\'t meet minWorkDay', self.minWorkDay
+                            print 'date', stats.previousDate, 'worker', worker, 'doesn\'t meet minWorkDay', self.minWorkDay
                             return False
                         # 重置为1
                         stats.accumulatedWorkDay = 1
@@ -300,10 +300,11 @@ class Scheduler:
             if newWorkerDayPerWorker[index][1] >= targetTotalWorkDay:
                 break
             targetWorkerId = newWorkerDayPerWorker[index][0]
-            arrangedWorkDates = workStats[targetWorkerId].arrangedWorkDay
-            for arrangedWorkDay in arrangedWorkDates:
+            iterateOnlyArrangedWorkDay = workStats[targetWorkerId].arrangedWorkDay[:]
+            for arrangedWorkDay in iterateOnlyArrangedWorkDay:
                 startDate = arrangedWorkDay.startDate
                 endDate = arrangedWorkDay.endDate
+                print 'start analysis worker', targetWorkerId, 'from', startDate, 'to', endDate
 
                 # 在前一天寻找可以替换的，换成自己
                 if startDate != 1:
@@ -319,36 +320,44 @@ class Scheduler:
                             if targetWorkerId not in targetCalendar.get(startDate - 2, list()):
                                 if workerId not in targetCalendar.get(startDate, list()):
                                     for innerPair in workStats[workerId].arrangedWorkDay:
-                                        if startDate - 1 == innerPair.endDate:
+                                        targetStartDate = startDate - 1
+                                        if targetStartDate == innerPair.endDate:
+                                            # 防止缩短后小于最小连续天数
                                             if innerPair.endDate - innerPair.startDate < self.minWorkDay:
                                                 continue
-                                            targetCalendar[startDate - 1].remove(workerId)
-                                            targetCalendar[startDate - 1].append(targetWorkerId)
+                                            print 'start', startDate, 'end', endDate
+                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
+                                            targetCalendar[targetStartDate].remove(workerId)
+                                            targetCalendar[targetStartDate].append(targetWorkerId)
                                             workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
                                             workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
                                             newInnerPair = innerPair
                                             newInnerPair.endDate -= 1
                                             workStats[workerId].arrangedWorkDay.remove(innerPair)
                                             workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            newArrangedWorkDay = arrangedWorkDay
-                                            newArrangedWorkDay.startDate += 1
-                                            workStats[targetWorkerId].arrangedWorkDay.remove(arrangedWorkDay)
-                                            workStats[targetWorkerId].arrangedWorkDay.append(newArrangedWorkDay)
-                                            print 'start', startDate, 'end', endDate
-                                            print 'targetStartDate', startDate - 1, 'old id', self.workers[
+                                            for day in workStats[workerId].arrangedWorkDay:
+                                                if day.startDate == startDate and day.endDate:
+                                                    workStats[workerId].arrangedWorkDay.remove(day)
+                                                    break
+                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(targetStartDate, endDate))
+
+                                            print 'targetStartDate1', targetStartDate, 'old id', self.workers[
                                                 workerId], 'new id', self.workers[targetWorkerId]
-                                            startDate -= 1
+                                            startDate = targetStartDate
                                             break
                                 elif workerId in targetCalendar.get(startDate - 1,
                                                                     list()) and workerId not in targetCalendar.get(
                                             startDate - 2, list()):
                                     # 和当前id并存，并比当前ID早一天开始
                                     for innerPair in workStats[workerId].arrangedWorkDay:
-                                        if startDate - 1 == innerPair.startDate:
+                                        targetStartDate = startDate - 1
+                                        if targetStartDate == innerPair.startDate:
                                             if innerPair.endDate - innerPair.startDate < self.minWorkDay:
                                                 continue
-                                            targetCalendar[startDate - 1].remove(workerId)
-                                            targetCalendar[startDate - 1].append(targetWorkerId)
+                                            print 'start', startDate, 'end', endDate
+                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
+                                            targetCalendar[targetStartDate].remove(workerId)
+                                            targetCalendar[targetStartDate].append(targetWorkerId)
                                             workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
                                             workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
                                             newInnerPair = innerPair
@@ -356,13 +365,16 @@ class Scheduler:
                                             workStats[workerId].arrangedWorkDay.remove(innerPair)
                                             workStats[workerId].arrangedWorkDay.append(newInnerPair)
                                             newArrangedWorkDay = arrangedWorkDay
-                                            newArrangedWorkDay.startDate -= 1
-                                            workStats[targetWorkerId].arrangedWorkDay.remove(arrangedWorkDay)
-                                            workStats[targetWorkerId].arrangedWorkDay.append(newArrangedWorkDay)
-                                            print 'start', startDate, 'end', endDate
-                                            print 'targetEndDate2', endDate + 1, 'old id', self.workers[
+                                            newArrangedWorkDay.startDate = targetStartDate
+                                            for day in workStats[workerId].arrangedWorkDay:
+                                                if day.startDate == startDate and day.endDate:
+                                                    workStats[workerId].arrangedWorkDay.remove(day)
+                                                    break
+                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(targetStartDate, endDate))
+
+                                            print 'targetStartDate2', endDate + 1, 'old id', self.workers[
                                                 workerId], 'new id', self.workers[targetWorkerId]
-                                            startDate -= 1
+                                            startDate = targetStartDate
                                             break
 
                 # 在后一天寻找可以替换的
@@ -379,50 +391,56 @@ class Scheduler:
                             if targetWorkerId not in targetCalendar.get(endDate + 2, list()):
                                 if workerId not in targetCalendar.get(endDate, list()):
                                     for innerPair in workStats[workerId].arrangedWorkDay:
-                                        if endDate + 1 == innerPair.startDate:
+                                        targetEndDate = endDate + 1
+                                        if targetEndDate == innerPair.startDate:
                                             if innerPair.endDate - innerPair.startDate < self.minWorkDay:
                                                 continue
-                                            targetCalendar[endDate + 1].remove(workerId)
-                                            targetCalendar[endDate + 1].append(targetWorkerId)
+                                            print 'start', startDate, 'end', endDate
+                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
+                                            targetCalendar[targetEndDate].remove(workerId)
+                                            targetCalendar[targetEndDate].append(targetWorkerId)
                                             workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
                                             workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
                                             newInnerPair = innerPair
-                                            newInnerPair.startDate -= 1
+                                            newInnerPair.startDate += 1
                                             workStats[workerId].arrangedWorkDay.remove(innerPair)
                                             workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            newArrangedWorkDay = arrangedWorkDay
-                                            newArrangedWorkDay.endDate += 1
-                                            workStats[targetWorkerId].arrangedWorkDay.remove(arrangedWorkDay)
-                                            workStats[targetWorkerId].arrangedWorkDay.append(newArrangedWorkDay)
-                                            print 'start', startDate, 'end', endDate
-                                            print 'targetEndDate1', endDate + 1, 'old id', self.workers[
+                                            for day in workStats[workerId].arrangedWorkDay:
+                                                if day.startDate == startDate and day.endDate:
+                                                    workStats[workerId].arrangedWorkDay.remove(day)
+                                                    break
+                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(startDate, targetEndDate))
+                                            print 'targetEndDate1', targetEndDate, 'old id', self.workers[
                                                 workerId], 'new id', self.workers[targetWorkerId]
-                                            endDate += 1
+                                            endDate = targetEndDate
                                             break
                                 elif workerId in targetCalendar.get(endDate + 1,
                                                                     list()) and workerId not in targetCalendar.get(
                                             endDate + 2, list()):
                                     # 和当前id并存，并比当前ID多一天
                                     for innerPair in workStats[workerId].arrangedWorkDay:
-                                        if endDate + 1 == innerPair.endDate:
+                                        targetEndDate = endDate + 1
+                                        if targetEndDate == innerPair.endDate:
                                             if innerPair.endDate - innerPair.startDate < self.minWorkDay:
                                                 continue
-                                            targetCalendar[endDate + 1].remove(workerId)
-                                            targetCalendar[endDate + 1].append(targetWorkerId)
+                                            print 'start', startDate, 'end', endDate
+                                            print 'inner start', innerPair.startDate, 'end', innerPair.endDate
+                                            targetCalendar[targetEndDate].remove(workerId)
+                                            targetCalendar[targetEndDate].append(targetWorkerId)
                                             workerDayPerWorker[workerId] = workerDayPerWorker[workerId] - 1
                                             workerDayPerWorker[targetWorkerId] = workerDayPerWorker[targetWorkerId] + 1
                                             newInnerPair = innerPair
                                             newInnerPair.endDate -= 1
                                             workStats[workerId].arrangedWorkDay.remove(innerPair)
                                             workStats[workerId].arrangedWorkDay.append(newInnerPair)
-                                            newArrangedWorkDay = arrangedWorkDay
-                                            newArrangedWorkDay.startDate += 1
-                                            workStats[targetWorkerId].arrangedWorkDay.remove(arrangedWorkDay)
-                                            workStats[targetWorkerId].arrangedWorkDay.append(newArrangedWorkDay)
-                                            print 'start', startDate, 'end', endDate
+                                            for day in workStats[workerId].arrangedWorkDay:
+                                                if day.startDate == startDate and day.endDate:
+                                                    workStats[workerId].arrangedWorkDay.remove(day)
+                                                    break
+                                            workStats[targetWorkerId].arrangedWorkDay.append(ArrangedWorkDay(startDate, targetEndDate))
                                             print 'targetEndDate2', endDate + 1, 'old id', self.workers[
                                                 workerId], 'new id', self.workers[targetWorkerId]
-                                            endDate += 1
+                                            endDate = targetEndDate
                                             break
 
         return targetCalendar
