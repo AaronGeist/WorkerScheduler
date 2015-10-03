@@ -20,8 +20,7 @@ class Scheduler:
 
     def __init__(self, workers, workload=NUM_OF_WORKLOAD, minWorkDay=MIN_WORK_DAY, maxWorkDay=MAX_WORK_DAY):
         self.workers = workers
-        # TODO make it random
-        # random.shuffle(self.workers)
+        random.shuffle(self.workers)
         self.workload = int(workload)
         self.minWorkDay = int(minWorkDay)
         self.maxWorkDay = int(maxWorkDay)
@@ -468,11 +467,3 @@ if __name__ == "__main__":
 
     targetDays = 26
     s.schedule(targetDays)
-
-    # firstLine = '日期,'.decode('utf-8', 'ignore')
-    # firstLine += '出勤人员名单'.decode('utf-8', 'ignore')
-    # firstLine += ''.join([','.decode('utf-8', 'ignore')] * 4)
-    # firstLine += '休息人员名单,'.decode('utf-8', 'ignore')
-    # print firstLine
-    #
-    # BaseDAL.writeAll('c:/Users/yzhou7/Desktop/test.csv', [str(firstLine)])

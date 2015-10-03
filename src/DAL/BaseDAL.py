@@ -2,19 +2,23 @@
 __author__ = 'yzhou7'
 
 import os
+import codecs
 import cPickle
+
 
 class BaseDAL:
     ACCESS_READ_ONLY = "r"
-    ACCESS_WRITE_ONLY = "a"
+    ACCESS_WRITE_ONLY = "w"
+    DEFAULT_CODING = 'utf-8'
+    DEFAULT_CODING_WITH_SIG = 'utf_8_sig'
 
     @staticmethod
     def checkFileExist(file_path):
         return os.path.exists(file_path) and os.path.isfile(file_path)
 
     @staticmethod
-    def loadFile(file_path, access_mode):
-        file = open(file_path, access_mode)
+    def loadFile(file_path, access_mode, coding=DEFAULT_CODING_WITH_SIG):
+        file = codecs.open(file_path, access_mode, coding)
         return file
 
     # return lines in list
@@ -49,7 +53,8 @@ class BaseDAL:
     @staticmethod
     def writeAll(file_path, line_list):
         file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_WRITE_ONLY)
-        file.writelines([line.strip() + '\n' for line in line_list])
+        file.writelines([line.encode(BaseDAL.DEFAULT_CODING).strip() + '\n' for line in line_list])
+        file.flush()
         file.close()
         return
 

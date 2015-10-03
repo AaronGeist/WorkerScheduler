@@ -205,16 +205,18 @@ class SellerPanel(wx.Panel):
             filePath = dialog.GetPath()
             if filePath:
                 data = self.data1._data
-                firstLine = u'日期,'
+                firstLine = u'日期,|,'
                 firstLine += u'出勤人员名单'
-                firstLine += ''.join([','] * int(self.workloadInput.GetValue()))
-                firstLine += u'休息人员名单,'
-                firstLine += ''.join([','] * (int(self.workerNumInput.GetValue()) - int(self.workloadInput.GetValue())))
+                firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
+                firstLine += u'|,休息人员名单,'
+                firstLine += u''.join(
+                    [u','] * (int(self.workerNumInput.GetValue()) - int(self.workloadInput.GetValue())))
 
                 lines = [firstLine]
                 lines.extend(map(
-                     lambda item: str(item[0]) + ',|,|,' + ','.join(item[1].split()) + ',|,|,' + ','.join(item[2].split()), data))
-                wx.MessageBox("\n".join(lines))
+                    lambda item: item[0] + u',|,' + u','.join(item[1].split()) + u',|,' + u','.join(
+                        item[2].split()), data))
+                wx.MessageBox(u"\n".join(lines))
                 wx.MessageBox(str(type(lines)))
                 result = BaseDAL.writeAll(filePath, lines)
                 wx.MessageBox(u'成功导出到文件', filePath)

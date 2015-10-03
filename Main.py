@@ -5,8 +5,7 @@ import sys
 import wx
 from src.UI.MainWindow import MainWindow
 
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
+sys.setdefaultencoding('utf-8')
 
 app = wx.App(False)
 frame = MainWindow(None, u'排班助手V1')
