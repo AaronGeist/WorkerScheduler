@@ -33,18 +33,11 @@ class SellerPanel(wx.Panel):
 
         sizer = wx.GridBagSizer(4, 4)
 
-        workerNumText = wx.StaticText(self, label=u"总人数")
-        sizer.Add(workerNumText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
-
-        self.workerNumInput = wx.TextCtrl(self, value='20', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.workerNumInput, pos=(0, 1),
-                  flag=wx.TOP | wx.LEFT, border=12)
-
         workloadText = wx.StaticText(self, label=u'每天出勤人数')
-        sizer.Add(workloadText, pos=(0, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        sizer.Add(workloadText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.workloadInput = wx.TextCtrl(self, value='12', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.workloadInput, pos=(0, 3),
+        sizer.Add(self.workloadInput, pos=(0, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         minWorkDays = wx.StaticText(self, label=u'最小连续出勤天数')
@@ -84,7 +77,7 @@ class SellerPanel(wx.Panel):
 
         self.scheduleBtn = wx.Button(self, label=u'开始排班', size=(80, 40))
         sizer.Add(self.scheduleBtn, pos=(3, 0), flag=wx.TOP | wx.LEFT | wx.ALIGN_RIGHT, border=12)
-        self.scheduleBtn.Enable(True)
+        self.scheduleBtn.Enable(False)
         self.Bind(wx.EVT_BUTTON, self.onSchedule, self.scheduleBtn)
 
         self.exportBtn = wx.Button(self, label=u'导出排班', size=(80, 40))
@@ -119,6 +112,8 @@ class SellerPanel(wx.Panel):
 
     def updateGrid(self, rows):
         self.grid.ClearGrid()
+        rows = map(lambda x: [x[0].decode('utf-8', 'ignore'), x[1]], rows)
+        self.scheduleBtn.Enable(True)
         self.data.InsertRows(rows)
         self.grid.SetTable(self.data)
         self.grid.AutoSize()
@@ -126,13 +121,14 @@ class SellerPanel(wx.Panel):
 
     def updateGrid1(self, rows):
         self.grid1.ClearGrid()
+        rows = map(lambda x: [x[0], x[1].decode('utf-8', 'ignore'), x[2].decode('utf-8', 'ignore')], rows)
         self.data1.InsertRows(rows)
         self.grid1.SetTable(self.data1)
         self.grid1.AutoSize()
         self.vBox.Layout()
 
     def onSchedule(self, evt):
-        workers = range(1, int(self.workerNumInput.GetValue()) + 1)
+        workers = map(lambda x: x[0], self.data._data)
         if not self.checkInput():
             return
         s = Scheduler(workers, self.workloadInput.GetValue(), self.minWorkDaysInput.GetValue(),
@@ -144,8 +140,8 @@ class SellerPanel(wx.Panel):
         result = list()
         for keyValuePair in sorted(scheduleResult.workCalendar.iteritems(), key=lambda d: d[0]):
             result.append([TimeUtil.getFormatedDate(self.startDateInput.GetValue(), keyValuePair[0] - 1),
-                           "    ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))),
-                           "    ".join(map(str, map(lambda index: workers[index],
+                           ",   ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))),
+                           ",   ".join(map(str, map(lambda index: workers[index],
                                                     scheduleResult.restCalendar[keyValuePair[0]])))
                            ])
         self.updateGrid1(result)
@@ -181,23 +177,6 @@ class SellerPanel(wx.Panel):
             self.vBox.Layout()
             self.scheduleBtn.Enable(False)
 
-    def onImport(self, evt):
-        dialog = wx.FileDialog(self, u"选择要导入的数据文件", os.getcwd(), style=wx.OPEN,
-                               wildcard="*.txt")
-        if dialog.ShowModal() == wx.ID_OK:
-            self.onFileRead(dialog.GetPath())
-            # self.SetTitle(self.filename)
-        dialog.Destroy()
-
-    def onFileRead(self, filePath):
-        if filePath:
-            # try:
-            lines = DailyDataDAL.readAll(filePath)
-            self.updateGrid(lines)
-            wx.MessageBox(u"导入数据成功" + ' '.join(lines), u"导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
-            # except:
-            #     wx.MessageBox("导入数据失败，请检测数据格式", "导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
-
     def onExport(self, evt):
         dialog = wx.FileDialog(self, u"选择要导出的文件位置", os.getcwd(), style=wx.OPEN,
                                wildcard="*.csv")
@@ -210,14 +189,15 @@ class SellerPanel(wx.Panel):
                 firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
                 firstLine += u'|,休息人员名单,'
                 firstLine += u''.join(
-                    [u','] * (int(self.workerNumInput.GetValue()) - int(self.workloadInput.GetValue())))
+                    [u','] * (len(self.data._data) - int(self.workloadInput.GetValue())))
 
                 lines = [firstLine]
+                # lines.extend(map(
+                #     lambda item: item[0] + u',|,' + u','.join(item[1].split()) + u',|,' + u','.join(
+                #         item[2].split()), data))
                 lines.extend(map(
-                    lambda item: item[0] + u',|,' + u','.join(item[1].split()) + u',|,' + u','.join(
+                    lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
                         item[2].split()), data))
-                wx.MessageBox(u"\n".join(lines))
-                wx.MessageBox(str(type(lines)))
                 result = BaseDAL.writeAll(filePath, lines)
                 wx.MessageBox(u'成功导出到文件', filePath)
         dialog.Destroy()

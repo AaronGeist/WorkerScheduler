@@ -3,6 +3,7 @@ __author__ = 'yzhou7'
 
 import os
 import codecs
+import chardet
 import cPickle
 
 
@@ -24,14 +25,17 @@ class BaseDAL:
     # return lines in list
     @staticmethod
     def readAll(file_path):
-        file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_READ_ONLY)
+        file = codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY)
         result = list()
         lines = file.readlines()
-        for line in lines:
-            line = line.strip()
-            # skip empty line
-            if len(line):
-                result.append(line)
+        if lines:
+            # coding = chardet.detect(lines[0])
+            for line in lines:
+                line = line.strip()
+                # skip empty line
+                if len(line):
+                    # line = line.decode(coding['encoding']).encode(BaseDAL.DEFAULT_CODING)
+                    result.append(line)
         file.close()
 
         # result.sort()
@@ -51,8 +55,8 @@ class BaseDAL:
         return result
 
     @staticmethod
-    def writeAll(file_path, line_list):
-        file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_WRITE_ONLY)
+    def writeAll(file_path, line_list, coding=DEFAULT_CODING_WITH_SIG):
+        file = codecs.open(file_path, BaseDAL.ACCESS_WRITE_ONLY, coding)
         file.writelines([line.encode(BaseDAL.DEFAULT_CODING).strip() + '\n' for line in line_list])
         file.flush()
         file.close()

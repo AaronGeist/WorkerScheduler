@@ -28,6 +28,10 @@ class Scheduler:
     def schedule(self, targetDays):
         scheduleResult = ScheduleResult()
         targetDays = int(targetDays)
+        if len(self.workers) < self.workload:
+            print 'worker number less than workload, cannot schedule'
+            scheduleResult.message = u'总员工人数小于每天出勤人数，无法排班'
+            return scheduleResult
         if len(self.workers) == self.workload:
             print 'worker number equals to workload, don\'t need to schedule at all'
             scheduleResult.message = u'总员工人数等于每天出勤人数，无需排班'
