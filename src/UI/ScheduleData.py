@@ -5,10 +5,10 @@ import wx
 import wx.grid
 
 
-class ScheduleData(wx.grid.PyGridTableBase):
+class ScheduleData(wx.grid.GridStringTable):
 
     def __init__(self):
-        wx.grid.PyGridTableBase.__init__(self)
+        wx.grid.GridStringTable.__init__(self)
         self._cols = [u'日期', u'出勤人员名单', u'休息人员名单']
         self._data = list()
         self._highlighted = set()
@@ -56,3 +56,6 @@ class ScheduleData(wx.grid.PyGridTableBase):
     def Clear(self):
         self._data = list()
         self._highlighted = set()
+
+if __name__ == '__main__':
+    data = ScheduleData()

@@ -1,10 +1,9 @@
 # coding=utf-8
-__author__ = 'yzhou7'
 
 import os
 import codecs
-import chardet
-import cPickle
+
+__author__ = 'yzhou7'
 
 
 class BaseDAL:
@@ -42,13 +41,6 @@ class BaseDAL:
         return result
 
     @staticmethod
-    def readAllInCpickle(file_path):
-        file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_READ_ONLY)
-        result = cPickle.load(file)
-        file.close()
-        return result
-
-    @staticmethod
     def readLine(file_path):
         file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_READ_ONLY)
         result = file.readline()
@@ -57,15 +49,21 @@ class BaseDAL:
     @staticmethod
     def writeAll(file_path, line_list, coding=DEFAULT_CODING_WITH_SIG):
         file = codecs.open(file_path, BaseDAL.ACCESS_WRITE_ONLY, coding)
-        file.writelines([line.encode(BaseDAL.DEFAULT_CODING).strip() + '\n' for line in line_list])
+        file.writelines([line.strip() + '\n' for line in line_list])
         file.flush()
         file.close()
         return
 
-    @staticmethod
-    def writeAllInCpickle(file_path, dict):
-        file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_WRITE_ONLY)
-        # json.dump(dict, file)
-        cPickle.dump(dict, file)
-        file.close()
-        return
+
+if __name__ == '__main__':
+    path = 'c:\\Users\\yzhou7\\Desktop\\名单-ansi.txt'
+
+    # with codecs.open(path, 'r', 'utf_8_sig') as f:
+    #     lines = f.readlines()
+    #     print(type(lines))
+    #     print(lines)
+    lines = BaseDAL.readAll(path)
+    print(type(lines))
+    result = map(lambda worker: worker, lines)
+    print(list(result))
+

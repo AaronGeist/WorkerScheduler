@@ -65,19 +65,20 @@ class MainWindow(wx.Frame):
         self.Close(True)
 
     def onImport(self, evt):
-        dialog = wx.FileDialog(self, u"选择要导入的数据文件", os.getcwd(), style=wx.OPEN, wildcard="*.txt")
+        dialog = wx.FileDialog(self, u"选择要导入的数据文件",
+                               os.getcwd(), style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST, wildcard="*.txt")
         if dialog.ShowModal() == wx.ID_OK:
             self.onFileRead(dialog.GetPath())
         dialog.Destroy()
 
     def onFileRead(self, filePath):
         if filePath:
-            try:
-                workerList = BaseDAL.readAll(filePath)
+            # try:
+            workerList = BaseDAL.readAll(filePath)
 
-                self.sellerPanel.updateGrid(map(lambda worker: [worker, '0'], workerList))
+            self.sellerPanel.updateGrid(list(map(lambda worker: [worker, '0'], workerList)))
 
-                wx.MessageBox(u"导入数据成功", u"导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
-            except Exception, e:
-                wx.MessageBox(u"导入数据失败，请检测数据格式，并保证文件为UTF-8格式", u"导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
+            wx.MessageBox(u"导入数据成功", u"导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
+            # except Exception, e:
+            #     wx.MessageBox(u"导入数据失败，请检测数据格式，并保证文件为UTF-8格式", u"导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
 

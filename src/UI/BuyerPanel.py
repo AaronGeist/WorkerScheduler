@@ -1,12 +1,11 @@
+import wx
+
 import os
+from src.UI.UserData import UserGridData
+from src.DAL.BaseDAL import BaseDAL
 from src.Strategy.Scheduler import Scheduler
 
 __author__ = 'yzhou7'
-
-import wx
-
-from src.DAL.DailyDataDAL import DailyDataDAL
-from src.UI.UserData import UserGridData
 
 
 class BuyerPanel(wx.Panel):
@@ -139,7 +138,7 @@ class BuyerPanel(wx.Panel):
     def onFileRead(self, filePath):
         if filePath:
             # try:
-            lines = DailyDataDAL.readAll(filePath)
+            lines = BaseDAL.readAll(filePath)
             self.updateGrid(lines)
             wx.MessageBox("导入数据成功" + ' '.join(lines), "导入数据", style=wx.OK | wx.ICON_EXCLAMATION)
             # except:

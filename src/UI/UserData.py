@@ -6,10 +6,10 @@ import wx.grid
 
 
 # Class to display user data in grid for a selected date
-class UserGridData(wx.grid.PyGridTableBase):
+class UserGridData(wx.grid.GridStringTable):
 
     def __init__(self):
-        wx.grid.PyGridTableBase.__init__(self)
+        wx.grid.GridStringTable.__init__(self, 5, 5)
         self._cols = [u'员工号', u'总出勤天数']
         self._data = list()
         self._highlighted = set()
@@ -47,8 +47,8 @@ class UserGridData(wx.grid.PyGridTableBase):
         self._highlighted.add(row)
         self.SetValue(row, col, val)
 
-    def InsertRows(self, lineList):
-        self._data.extend(lineList)
+    def InsertRows(self, rowNum):
+        self._data.append()
 
     def UpdateTable(self, lineList):
         self._data = list()

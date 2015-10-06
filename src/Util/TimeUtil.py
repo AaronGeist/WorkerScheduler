@@ -1,9 +1,9 @@
 # coding=utf-8
-__author__ = 'yzhou7'
 
 import time
 import datetime
 
+__author__ = 'yzhou7'
 
 class TimeUtil:
     @staticmethod
@@ -34,12 +34,12 @@ class TimeUtil:
 
 
 if __name__ == "__main__":
-    print TimeUtil.getToday()
+    print(TimeUtil.getToday())
 
-    print TimeUtil.isValidDate('2004-05-01')
+    print(TimeUtil.isValidDate('2004-05-01'))
 
-    print TimeUtil.isValidDate("2004-02-30")
+    print(TimeUtil.isValidDate("2004-02-30"))
 
-    print TimeUtil.getDayLength('2004-05-01', '2004-05-04')
+    print(TimeUtil.getDayLength('2004-05-01', '2004-05-04'))
 
-    print TimeUtil.getFormatedDate('2015-05-01', 5)
+    print(TimeUtil.getFormatedDate('2015-05-01', 5))

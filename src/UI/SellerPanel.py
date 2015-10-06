@@ -1,22 +1,21 @@
 # coding=utf-8
 import os
+
+import wx
+import wx.grid
+
 from src.Strategy.Scheduler import Scheduler
-from src.UI.ScheduleData import ScheduleData
 from src.Util.TimeUtil import TimeUtil
 from src.DAL.BaseDAL import BaseDAL
 
 __author__ = 'yzhou7'
 
-import wx
-
-from src.DAL.DailyDataDAL import DailyDataDAL
-from src.UI.UserData import UserGridData
-
 
 class SellerPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
-        self.SetBackgroundColour("white")
+        self.workers = list()
+        self.exportData = list()
         self.initUI()
         self.Show(True)
 
@@ -30,7 +29,6 @@ class SellerPanel(wx.Panel):
         # self.vBox.Layout()
 
     def setupDateInput(self):
-
         sizer = wx.GridBagSizer(4, 4)
 
         workloadText = wx.StaticText(self, label=u'每天出勤人数')
@@ -89,68 +87,85 @@ class SellerPanel(wx.Panel):
 
     def displayTodayData(self):
         sizer = wx.GridBagSizer(4, 4)
-
-        # set data into data grid
-        self.data = UserGridData()
-        self.data.InsertRows(list())
+        # try:
         self.grid = wx.grid.Grid(self)
-        self.grid.SetTable(self.data)
+        self.grid.CreateGrid(0, 2)
+        self.grid.SetColLabelValue(0, u'员工号')
+        self.grid.SetColLabelValue(1, u'总出勤天数')
         self.grid.AutoSize()
         sizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
 
-        self.data1 = ScheduleData()
-        self.data1.InsertRows(list())
-        # self.grid1 = wx.grid.Grid(self, size=(400, 300))
         self.grid1 = wx.grid.Grid(self)
-        self.grid1.SetTable(self.data1)
+        self.grid1.CreateGrid(0, 3)
+        self.grid1.SetColLabelValue(0, u'日期')
+        self.grid1.SetColLabelValue(1, u'出勤人员名单')
+        self.grid1.SetColLabelValue(2, u'休息人员名单')
         self.grid1.AutoSize()
         sizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        sizer.AddGrowableRow(1)
-        sizer.AddGrowableCol(2)
         self.vBox.Add(sizer, wx.ALIGN_BOTTOM | wx.ALIGN_LEFT, 10)
+        # except Exception as e:
+        #     wx.MessageBox(u'创建表格出错', str(e))
+
 
     def updateGrid(self, rows):
-        self.grid.ClearGrid()
-        rows = map(lambda x: [x[0].decode('utf-8', 'ignore'), x[1]], rows)
         self.scheduleBtn.Enable(True)
-        self.data.InsertRows(rows)
-        self.grid.SetTable(self.data)
+        self.workers = rows
+        self.grid.ClearGrid()
+        currentRowNum = self.grid.GetNumberRows()
+        if currentRowNum < len(rows):
+            self.grid.AppendRows(len(rows) - currentRowNum)
+        for rowNum in range(len(rows)):
+            self.grid.SetCellValue(rowNum, 0, rows[rowNum][0])
+            self.grid.SetCellValue(rowNum, 1, rows[rowNum][1])
         self.grid.AutoSize()
         self.vBox.Layout()
 
+
     def updateGrid1(self, rows):
+        # self.grid1.ClearGrid()
+        # rows = map(lambda x: [x[0], x[1], x[2]], rows)
+        # self.data1.InsertRows(rows)
+        # self.grid1.SetTable(self.data1)
+        # self.grid1.AutoSize()
+        # self.vBox.Layout()
         self.grid1.ClearGrid()
-        rows = map(lambda x: [x[0], x[1].decode('utf-8', 'ignore'), x[2].decode('utf-8', 'ignore')], rows)
-        self.data1.InsertRows(rows)
-        self.grid1.SetTable(self.data1)
+        currentRowNum = self.grid1.GetNumberRows()
+        if currentRowNum < len(rows):
+            self.grid1.AppendRows(len(rows) - currentRowNum)
+        for rowNum in range(len(rows)):
+            self.grid1.SetCellValue(rowNum, 0, rows[rowNum][0])
+            self.grid1.SetCellValue(rowNum, 1, rows[rowNum][1])
+            self.grid1.SetCellValue(rowNum, 2, rows[rowNum][2])
         self.grid1.AutoSize()
         self.vBox.Layout()
 
+
     def onSchedule(self, evt):
-        workers = map(lambda x: x[0], self.data._data)
         if not self.checkInput():
             return
-        s = Scheduler(workers, self.workloadInput.GetValue(), self.minWorkDaysInput.GetValue(),
+        s = Scheduler(self.workers, self.workloadInput.GetValue(), self.minWorkDaysInput.GetValue(),
                       self.maxWorkDaysInput.GetValue())
         targetDays = TimeUtil.getDayLength(self.startDateInput.GetValue(), self.endDateInput.GetValue())
         scheduleResult = s.schedule(int(targetDays))
         if scheduleResult.message.strip() != '':
             wx.MessageBox(scheduleResult.message)
         result = list()
-        for keyValuePair in sorted(scheduleResult.workCalendar.iteritems(), key=lambda d: d[0]):
+        for keyValuePair in sorted(scheduleResult.workCalendar.items(), key=lambda d: d[0]):
             result.append([TimeUtil.getFormatedDate(self.startDateInput.GetValue(), keyValuePair[0] - 1),
-                           ",   ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))),
-                           ",   ".join(map(str, map(lambda index: workers[index],
+                           ",   ".join(map(str, map(lambda index: self.workers[index][0], keyValuePair[1]))),
+                           ",   ".join(map(str, map(lambda index: self.workers[index][0],
                                                     scheduleResult.restCalendar[keyValuePair[0]])))
                            ])
+        self.exportData = result
         self.updateGrid1(result)
         self.exportBtn.Enable(True)
         personalTotalWorkDay = scheduleResult.personalTotalWorkDay
         workDayData = list()
-        for i in range(0, len(workers)):
-            workDayData.append([workers[i], personalTotalWorkDay.get(i, 0)])
+        for i in range(len(self.workers)):
+            workDayData.append([self.workers[i][0], str(personalTotalWorkDay.get(i, 0))])
         self.updateGrid(workDayData)
+
 
     def checkInput(self):
         # try:
@@ -165,6 +180,7 @@ class SellerPanel(wx.Panel):
         #     return False
         return True
 
+
     def OnEnterDate(self, evt):
         if TimeUtil.isValidDate(self.startDateInput.GetValue()) \
                 and TimeUtil.isValidDate(self.endDateInput.GetValue()) \
@@ -177,27 +193,28 @@ class SellerPanel(wx.Panel):
             self.vBox.Layout()
             self.scheduleBtn.Enable(False)
 
+
     def onExport(self, evt):
-        dialog = wx.FileDialog(self, u"选择要导出的文件位置", os.getcwd(), style=wx.OPEN,
+        dialog = wx.FileDialog(self, u"选择要导出的文件位置", os.getcwd(), style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
                                wildcard="*.csv")
         if dialog.ShowModal() == wx.ID_OK:
             filePath = dialog.GetPath()
             if filePath:
-                data = self.data1._data
+                data = self.exportData
                 firstLine = u'日期,|,'
                 firstLine += u'出勤人员名单'
                 firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
                 firstLine += u'|,休息人员名单,'
                 firstLine += u''.join(
-                    [u','] * (len(self.data._data) - int(self.workloadInput.GetValue())))
+                    [u','] * (len(data) - int(self.workloadInput.GetValue())))
 
                 lines = [firstLine]
                 # lines.extend(map(
                 #     lambda item: item[0] + u',|,' + u','.join(item[1].split()) + u',|,' + u','.join(
                 #         item[2].split()), data))
-                lines.extend(map(
+                lines.extend(list(map(
                     lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
-                        item[2].split()), data))
+                        item[2].split()), data)))
                 result = BaseDAL.writeAll(filePath, lines)
                 wx.MessageBox(u'成功导出到文件', filePath)
         dialog.Destroy()
