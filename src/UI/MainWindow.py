@@ -2,7 +2,6 @@
 import os
 
 import wx
-import wx.lib.scrolledpanel as scrolled
 from src.DAL.BaseDAL import BaseDAL
 from src.UI.SellerPanel import SellerPanel
 
@@ -16,10 +15,6 @@ class MainWindow(wx.Frame):
 
     def __init__(self, parent, title):
         super(MainWindow, self).__init__(parent, title=title, size=(1024, 800))
-
-        # self.panel_2 = scrolled.ScrolledPanel(self)
-        # self.panel_2.SetVirtualSize(500, 500)
-        # self.panel_2.SetScrollRate(20,20)
 
         self.initUI()
         self.Show(True)
@@ -50,8 +45,7 @@ class MainWindow(wx.Frame):
 
         nb = wx.Notebook(self)
         self.sellerPanel = SellerPanel(nb)
-        nb.AddPage(self.sellerPanel, u'智能排班算法演示')
-        # self.SetScrollbar(wx.VERTICAL, 0, 600, 1800, True)
+        nb.AddPage(self.sellerPanel, u'智能排班')
 
     def onAbout(self, evt):
         dlg = wx.MessageDialog(self, u'微信号shakazxx', u'关于', wx.OK)

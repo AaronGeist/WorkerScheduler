@@ -222,18 +222,21 @@ class SellerPanel(scrolled.ScrolledPanel):
         if dialog.ShowModal() == wx.ID_OK:
             filePath = dialog.GetPath()
             if filePath:
-                data = self.exportData
-                firstLine = u'日期,|,'
-                firstLine += u'出勤人员名单'
-                firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
-                firstLine += u'|,休息人员名单,'
-                firstLine += u''.join(
-                    [u','] * (len(data) - int(self.workloadInput.GetValue())))
+                try:
+                    data = self.exportData
+                    firstLine = u'日期,|,'
+                    firstLine += u'出勤人员名单'
+                    firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
+                    firstLine += u'|,休息人员名单,'
+                    firstLine += u''.join(
+                        [u','] * (len(data) - int(self.workloadInput.GetValue())))
 
-                lines = [firstLine]
-                lines.extend(list(map(
-                    lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
-                        item[2].split()), data)))
-                result = BaseDAL.writeAll(filePath, lines)
-                wx.MessageBox(u'成功导出到文件', filePath)
+                    lines = [firstLine]
+                    lines.extend(list(map(
+                        lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
+                            item[2].split()), data)))
+                    BaseDAL.writeAll(filePath, lines)
+                    wx.MessageBox(u'成功导出到文件', filePath)
+                except Exception as e:
+                    wx.MessageBox(u'导出失败，原因为: ' + str(e))
         dialog.Destroy()

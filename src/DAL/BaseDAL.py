@@ -24,46 +24,67 @@ class BaseDAL:
     # return lines in list
     @staticmethod
     def readAll(file_path):
-        file = codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY)
         result = list()
-        lines = file.readlines()
+        try:
+            # support for default ascii format
+            with codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY) as file:
+                lines = file.readlines()
+        except Exception as e:
+            print(str(e))
+            try:
+                # support for utf-8 with sig
+                with codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY, BaseDAL.DEFAULT_CODING_WITH_SIG) as file:
+                    lines = file.readlines()
+            except Exception as ee:
+                print(str(ee))
+                return result
+
         if lines:
-            # coding = chardet.detect(lines[0])
             for line in lines:
                 line = line.strip()
                 # skip empty line
                 if len(line):
-                    # line = line.decode(coding['encoding']).encode(BaseDAL.DEFAULT_CODING)
                     result.append(line)
-        file.close()
 
-        # result.sort()
         return result
 
     @staticmethod
     def readLine(file_path):
-        file = BaseDAL.loadFile(file_path, BaseDAL.ACCESS_READ_ONLY)
-        result = file.readline()
+        result = ''
+        try:
+            # support for default ascii format
+            with codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY) as file:
+                result = file.readline()
+        except Exception as e:
+            print(str(e))
+            try:
+                # support for utf-8 with sig
+                with codecs.open(file_path, BaseDAL.ACCESS_READ_ONLY, BaseDAL.DEFAULT_CODING_WITH_SIG) as file:
+                    result = file.readline()
+            except Exception as ee:
+                print(str(ee))
+                return result
+
         return result
 
     @staticmethod
     def writeAll(file_path, line_list, coding=DEFAULT_CODING_WITH_SIG):
-        file = codecs.open(file_path, BaseDAL.ACCESS_WRITE_ONLY, coding)
-        file.writelines([line.strip() + '\n' for line in line_list])
-        file.flush()
-        file.close()
-        return
+        with codecs.open(file_path, BaseDAL.ACCESS_WRITE_ONLY, coding) as file:
+            file.writelines([line.strip() + '\n' for line in line_list])
+            file.flush()
 
 
 if __name__ == '__main__':
-    path = 'c:\\Users\\yzhou7\\Desktop\\名单-ansi.txt'
+    path = '..\\TestResource\\name-ansi.txt'
 
-    # with codecs.open(path, 'r', 'utf_8_sig') as f:
-    #     lines = f.readlines()
-    #     print(type(lines))
-    #     print(lines)
     lines = BaseDAL.readAll(path)
-    print(type(lines))
     result = map(lambda worker: worker, lines)
     print(list(result))
+    assert len(list(result)) <= 0
 
+    path = '..\\TestResource\\name-utf8.txt'
+
+    lines = BaseDAL.readAll(path)
+    result = map(lambda worker: worker, lines)
+    print(list(result))
+    assert len(list(result)) <= 0
