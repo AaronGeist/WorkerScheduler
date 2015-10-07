@@ -3,6 +3,7 @@ import os
 
 import wx
 import wx.grid
+import wx.lib.scrolledpanel as scrolled
 
 from src.Strategy.Scheduler import Scheduler
 from src.Util.TimeUtil import TimeUtil
@@ -11,89 +12,118 @@ from src.DAL.BaseDAL import BaseDAL
 __author__ = 'yzhou7'
 
 
-class SellerPanel(wx.Panel):
+class SellerPanel(scrolled.ScrolledPanel):
     def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
+        scrolled.ScrolledPanel.__init__(self, parent)
         self.workers = list()
         self.exportData = list()
         self.initUI()
         self.Show(True)
 
     def initUI(self):
+
+        self.SetScrollRate(20, 20)
+        self.SetAutoLayout(True)
+
         self.vBox = wx.BoxSizer(wx.VERTICAL)
 
         self.setupDateInput()
         self.displayTodayData()
 
         self.SetSizer(self.vBox)
-        # self.vBox.Layout()
 
     def setupDateInput(self):
-        sizer = wx.GridBagSizer(4, 4)
+
+        optionSizer = wx.GridBagSizer(4, 4)
+        optionOuterSizer = wx.StaticBoxSizer(wx.HORIZONTAL, self, label=u'选项')
 
         workloadText = wx.StaticText(self, label=u'每天出勤人数')
-        sizer.Add(workloadText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(workloadText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.workloadInput = wx.TextCtrl(self, value='12', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.workloadInput, pos=(0, 1),
+        optionSizer.Add(self.workloadInput, pos=(0, 1),
+                  flag=wx.TOP | wx.LEFT, border=12)
+
+        workloadText = wx.StaticText(self, label=u'每天工作小时数')
+        optionSizer.Add(workloadText, pos=(0, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+
+        self.workHourInput = wx.TextCtrl(self, value='8', style=wx.TE_PROCESS_ENTER)
+        optionSizer.Add(self.workHourInput, pos=(0, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         minWorkDays = wx.StaticText(self, label=u'最小连续出勤天数')
-        sizer.Add(minWorkDays, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(minWorkDays, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.minWorkDaysInput = wx.TextCtrl(self, value='3', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.minWorkDaysInput, pos=(1, 1),
+        optionSizer.Add(self.minWorkDaysInput, pos=(1, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         maxWorkDaysText = wx.StaticText(self, label=u'最大连续出勤天数')
-        sizer.Add(maxWorkDaysText, pos=(1, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(maxWorkDaysText, pos=(1, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.maxWorkDaysInput = wx.TextCtrl(self, value='6', style=wx.TE_PROCESS_ENTER)
-        sizer.Add(self.maxWorkDaysInput, pos=(1, 3),
+        optionSizer.Add(self.maxWorkDaysInput, pos=(1, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         startDate = wx.StaticText(self, label=u'开始日期')
-        sizer.Add(startDate, pos=(2, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(startDate, pos=(2, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.startDateInput = wx.TextCtrl(self, value=TimeUtil.getToday(), style=wx.TE_PROCESS_ENTER)
         self.Bind(wx.EVT_TEXT, self.OnEnterDate, self.startDateInput)
-        sizer.Add(self.startDateInput, pos=(2, 1),
+        optionSizer.Add(self.startDateInput, pos=(2, 1),
                   flag=wx.TOP | wx.LEFT, border=12)
 
         endDate = wx.StaticText(self, label=u'结束日期')
-        sizer.Add(endDate, pos=(2, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(endDate, pos=(2, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        self.endDateInput = wx.TextCtrl(self, value=TimeUtil.getToday(), style=wx.TE_PROCESS_ENTER)
+        self.endDateInput = wx.TextCtrl(self, value=TimeUtil.getFormatedDate(TimeUtil.getToday(), 30), style=wx.TE_PROCESS_ENTER)
         self.Bind(wx.EVT_TEXT, self.OnEnterDate, self.endDateInput)
-        sizer.Add(self.endDateInput, pos=(2, 3),
+        optionSizer.Add(self.endDateInput, pos=(2, 3),
                   flag=wx.TOP | wx.LEFT, border=12)
+
+        blankMsg = wx.StaticText(self, label=u' ')
+        optionSizer.Add(blankMsg, pos=(3, 0), flag=wx.TOP | wx.LEFT, border=15)
 
         self.warnMsg = wx.StaticText(self, label=u'非法日期，请重新输入')
         self.warnMsg.SetForegroundColour('red')
-        sizer.Add(self.warnMsg, pos=(2, 4), flag=wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(self.warnMsg, pos=(3, 1), span=(1, 3), flag=wx.TOP | wx.LEFT, border=15)
         self.warnMsg.Hide()
 
-        self.scheduleBtn = wx.Button(self, label=u'开始排班', size=(80, 40))
-        sizer.Add(self.scheduleBtn, pos=(3, 0), flag=wx.TOP | wx.LEFT | wx.ALIGN_RIGHT, border=12)
+        optionOuterSizer.Add(optionSizer)
+
+        fontBtn = wx.Font(13, wx.FONTFAMILY_MODERN, wx.NORMAL,wx.FONTWEIGHT_BOLD)
+        btnOuterSizer = wx.StaticBoxSizer(wx.VERTICAL, self, u'操作')
+        btnSizer = wx.GridBagSizer(4, 4)
+        self.scheduleBtn = wx.Button(self, label=u'开始\n排班', size=(80, 66))
+        self.scheduleBtn.SetFont(fontBtn)
+        btnSizer.Add(self.scheduleBtn, pos=(0, 0), flag= wx.LEFT | wx.RIGHT, border=12)
         self.scheduleBtn.Enable(False)
         self.Bind(wx.EVT_BUTTON, self.onSchedule, self.scheduleBtn)
 
-        self.exportBtn = wx.Button(self, label=u'导出排班', size=(80, 40))
-        sizer.Add(self.exportBtn, pos=(3, 1), flag=wx.TOP | wx.LEFT | wx.ALIGN_RIGHT, border=12)
+        self.exportBtn = wx.Button(self, label=u'导出\n排班', size=(80, 66))
+        self.exportBtn.SetFont(fontBtn)
+        btnSizer.Add(self.exportBtn, pos=(1, 0), flag=wx.BOTTOM | wx.LEFT | wx.RIGHT, border=12)
         self.exportBtn.Enable(False)
         self.Bind(wx.EVT_BUTTON, self.onExport, self.exportBtn)
 
-        self.vBox.Add(sizer, wx.ALIGN_TOP | wx.ALIGN_LEFT, 10)
+        btnOuterSizer.Add(btnSizer)
+
+        outerSizer = wx.BoxSizer(orient=wx.HORIZONTAL)
+        outerSizer.Add(optionOuterSizer)
+        outerSizer.AddSpacer(15)
+        outerSizer.Add(btnOuterSizer)
+
+        self.vBox.Add(outerSizer, wx.ALIGN_TOP | wx.ALIGN_LEFT, 10)
+
 
     def displayTodayData(self):
-        sizer = wx.GridBagSizer(4, 4)
-        # try:
+        gridSizer = wx.GridBagSizer(4, 4)
         self.grid = wx.grid.Grid(self)
         self.grid.CreateGrid(0, 2)
-        self.grid.SetColLabelValue(0, u'员工号')
+        self.grid.SetColLabelValue(0, u'员工名')
         self.grid.SetColLabelValue(1, u'总出勤天数')
         self.grid.AutoSize()
-        sizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
+        gridSizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
 
         self.grid1 = wx.grid.Grid(self)
         self.grid1.CreateGrid(0, 3)
@@ -101,11 +131,9 @@ class SellerPanel(wx.Panel):
         self.grid1.SetColLabelValue(1, u'出勤人员名单')
         self.grid1.SetColLabelValue(2, u'休息人员名单')
         self.grid1.AutoSize()
-        sizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        gridSizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
-        self.vBox.Add(sizer, wx.ALIGN_BOTTOM | wx.ALIGN_LEFT, 10)
-        # except Exception as e:
-        #     wx.MessageBox(u'创建表格出错', str(e))
+        self.vBox.Add(gridSizer, wx.ALIGN_BOTTOM | wx.ALIGN_LEFT, 10)
 
 
     def updateGrid(self, rows):
@@ -123,12 +151,6 @@ class SellerPanel(wx.Panel):
 
 
     def updateGrid1(self, rows):
-        # self.grid1.ClearGrid()
-        # rows = map(lambda x: [x[0], x[1], x[2]], rows)
-        # self.data1.InsertRows(rows)
-        # self.grid1.SetTable(self.data1)
-        # self.grid1.AutoSize()
-        # self.vBox.Layout()
         self.grid1.ClearGrid()
         currentRowNum = self.grid1.GetNumberRows()
         if currentRowNum < len(rows):
@@ -209,9 +231,6 @@ class SellerPanel(wx.Panel):
                     [u','] * (len(data) - int(self.workloadInput.GetValue())))
 
                 lines = [firstLine]
-                # lines.extend(map(
-                #     lambda item: item[0] + u',|,' + u','.join(item[1].split()) + u',|,' + u','.join(
-                #         item[2].split()), data))
                 lines.extend(list(map(
                     lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
                         item[2].split()), data)))

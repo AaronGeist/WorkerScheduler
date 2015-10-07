@@ -26,10 +26,10 @@ class Scheduler:
         if randomFactor < 5:
             randomFactor = 5
 
-        print "factor", randomFactor
+        print("factor", randomFactor)
 
         if (self.maxRestDay * self.workLoad) < len(self.workers):
-            print "Cannot schedule worker"
+            print("Cannot schedule worker")
             return dict()
 
         size = len(self.workers)
@@ -52,8 +52,8 @@ class Scheduler:
                 previousDay = previousWorkerDay[index]
                 maxNextDay = previousDay + self.maxRestDay
                 if (maxNextDay < minNextDay):
-                    print '########### worker', self.workers[
-                        index], 'minNextDay: ', minNextDay, 'maxNextDay: ', maxNextDay
+                    print('########### worker', self.workers[
+                        index], 'minNextDay: ', minNextDay, 'maxNextDay: ', maxNextDay)
                     self.printSchedule(resultDict)
                     return dict()
 
@@ -79,7 +79,7 @@ class Scheduler:
             if len(workerList) == self.workLoad:
                 continue
             else:
-                print "refator", day
+                print("refator", day)
                 targetDay = day - 1
                 while len(workerList) != 0:
                     if targetDay > 0:
@@ -100,28 +100,28 @@ class Scheduler:
 
     def printSchedule(self, workerDict):
         for (day, idList) in workerDict.items():
-            print str(day) + ": " + ", ".join(map(str, idList))
+            print(str(day) + ": " + ", ".join(map(str, idList)))
 
     def validateSchedule(self, workerDict):
         if workerDict:
             status = dict()
             for (currentDay, workerList) in workerDict.items():
                 if len(workerList) > self.workLoad:
-                    print "too many work load one day"
+                    print("too many work load one day")
                     return False
 
                 for workerId in workerList:
                     prevWorkDay = status.get(workerId, 0)
                     if (currentDay - prevWorkDay) > self.maxRestDay:
-                        print '#####', workerId, ": previous is ", prevWorkDay, " but now is ", currentDay
+                        print('#####', workerId, ": previous is ", prevWorkDay, " but now is ", currentDay)
                         return False
                     elif currentDay == prevWorkDay:
-                        print '&&&&&', workerId, ": duplicated day ", prevWorkDay
+                        print('&&&&&', workerId, ": duplicated day ", prevWorkDay)
                         return False
                         # else:
                         # print workerId, ": previous is ", prevWorkDay, " but now is ", currentDay
                     status[workerId] = currentDay
-            print 'valid schedule'
+            print('valid schedule')
             return True
         else:
             return False
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     s = Scheduler(nameList)
     while count < s.MAX_RETRY_TIME:
         count += 1
-        print 'count', count
+        print('count', count)
         data = s.schedule(15)
         if s.validateSchedule(data):
             # s.printSchedule(data)

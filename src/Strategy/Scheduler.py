@@ -1,11 +1,9 @@
 # coding=utf-8
 import random
 import math
-import sys
-import wx
+
 from src.Data.WorkerStats import WorkerStats, ArrangedWorkDay
 from src.Data.ScheduleResult import ScheduleResult
-from src.DAL.BaseDAL import BaseDAL
 
 __author__ = 'yzhou7'
 
@@ -478,13 +476,3 @@ if __name__ == "__main__":
 
     targetDays = 30
     s.schedule(targetDays)
-
-    # m = {'1': 1, '2': 2}
-    # newResult = list()
-    # for (key, value) in m.items():
-    #     if value > 1:
-    #         newResult.append((key, value))
-    # print(newResult)
-    # # result = filter(lambda [x, y]: x > 1, m.items())
-    # result = list(map(lambda x: (x[0], abs(x[1] - 1)), newResult))
-    # print(result)

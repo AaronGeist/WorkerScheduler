@@ -1,9 +1,11 @@
 # coding=utf-8
-__author__ = 'yzhou7'
-
 import wx
+
+from src.Constants import Constants
 from src.UI.MainWindow import MainWindow
 
+__author__ = 'yzhou7'
+
 app = wx.App(False)
-frame = MainWindow(None, u'排班助手V1')
+frame = MainWindow(None, Constants.MAIN_WINDOW_TITLE)
 app.MainLoop()
