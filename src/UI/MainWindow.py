@@ -3,6 +3,7 @@ import os
 
 import wx
 from src.DAL.BaseDAL import BaseDAL
+from src.SystemInitializer import SystemInitializer
 from src.UI.SellerPanel import SellerPanel
 
 __author__ = 'yzhou7'
@@ -15,7 +16,9 @@ class MainWindow(wx.Frame):
 
     def __init__(self, parent, title):
         super(MainWindow, self).__init__(parent, title=title, size=(1024, 800))
-
+        if not SystemInitializer.initialize():
+            wx.MessageBox(u'试用时间已经超过，请联系软件作者，微信号shakazxx')
+            self.Close(True)
         self.initUI()
         self.Show(True)
 

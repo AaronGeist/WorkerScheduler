@@ -1,4 +1,9 @@
 # coding=utf-8
+import os
+
+from tinydb import TinyDB, where
+from src.Util.TimeUtil import TimeUtil
+
 __author__ = 'yzhou7'
 
 
@@ -9,7 +14,17 @@ class SystemInitializer:
     # entry for system init
     @staticmethod
     def initialize():
-        pass
+        # 检查使用时间是否超时
+        db = TinyDB(os.environ['LOCALAPPDATA'] + '\\scheduler.dat')
+        startDate = db.search(where('startDate'))
+        if len(startDate) > 0:
+            if TimeUtil.getDayLength(startDate[0]['startDate'], TimeUtil.getToday()) > 2:
+                return False
+
+        else:
+            db.insert({'startDate': TimeUtil.getToday()})
+            return True
+
         # SystemInitializer.createDir()
         # SystemInitializer.createFiles()
 
@@ -34,3 +49,6 @@ class SystemInitializer:
     #     if not os.path.exists(Constants.SELLER_FILE_PATH):
     #         file = open(Constants.SELLER_FILE_PATH, "w")
     #         file.close()
+
+if __name__ == '__main__':
+    print(SystemInitializer.initialize())
