@@ -7,6 +7,8 @@ __author__ = 'yzhou7'
 '''
 This class is designed for time/date related operations
 '''
+
+
 class TimeUtil:
     # Get today's date in string format YY-MM-DD
     @staticmethod
@@ -41,6 +43,30 @@ class TimeUtil:
         start = datetime.datetime.strptime(startDate, "%Y-%m-%d")
         return (start + datetime.timedelta(days=delta)).strftime("%Y-%m-%d")
 
+    @staticmethod
+    def getMonday(date):
+        start = datetime.datetime.strptime(date, "%Y-%m-%d")
+        weekday = start.weekday()
+        if weekday != 0:
+            return TimeUtil.getFormatedDate(date, -weekday)
+        else:
+            return date
+
+    @staticmethod
+    def getSunday(date):
+        start = datetime.datetime.strptime(date, "%Y-%m-%d")
+        weekday = start.weekday()
+        if weekday != 6:
+            return TimeUtil.getFormatedDate(date, 6 - weekday)
+        else:
+            return date
+
+    @staticmethod
+    def isWeekend(date):
+        start = datetime.datetime.strptime(date, "%Y-%m-%d")
+        weekday = start.weekday()
+        return weekday == 5 or weekday == 6
+
 
 if __name__ == "__main__":
     print(TimeUtil.getToday())
@@ -54,3 +80,24 @@ if __name__ == "__main__":
     print(TimeUtil.getDayLength('2004-05-01', '2004-05-04'))
 
     print(TimeUtil.getFormatedDate('2015-05-01', 5))
+
+    print("get monday")
+    print(TimeUtil.getMonday('2015-10-11'))
+    print(TimeUtil.getMonday('2015-10-10'))
+    print(TimeUtil.getMonday('2015-10-09'))
+    print(TimeUtil.getMonday('2015-10-08'))
+    print(TimeUtil.getMonday('2015-10-07'))
+    print(TimeUtil.getMonday('2015-10-06'))
+    print(TimeUtil.getMonday('2015-10-05'))
+
+    print('get sunday')
+    print(TimeUtil.getSunday('2015-10-05'))
+    print(TimeUtil.getSunday('2015-10-06'))
+    print(TimeUtil.getSunday('2015-10-07'))
+    print(TimeUtil.getSunday('2015-10-08'))
+    print(TimeUtil.getSunday('2015-10-09'))
+    print(TimeUtil.getSunday('2015-10-10'))
+    print(TimeUtil.getSunday('2015-10-11'))
+
+    print(TimeUtil.isWeekend(TimeUtil.getSunday('2015-10-11')))
+    print(TimeUtil.isWeekend(TimeUtil.getMonday('2015-10-11')))

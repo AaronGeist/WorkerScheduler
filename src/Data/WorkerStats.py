@@ -2,17 +2,15 @@
 __author__ = 'yzhou7'
 
 class WorkerStats:
-
-    def __init__(self, workerId, targetTotalWorkDay):
+    def __init__(self, workerId, totalRestDay, totalRestWeekendDay):
         self.workerId = workerId
-        self.workDayLeft = targetTotalWorkDay
-        self.arrangedWorkDay = list()
-        self.previousDate = -1
-        self.accumulatedWorkDay = 0
-        self.totalWorkDay = 0
+        self.restDayLeftNum = totalRestDay
+        self.restWeekendLeftNum = totalRestWeekendDay
+        self.arrangedRestDay = list()
+        self.previousRestEndDate = -1
+        self.accumulatedRestDayNum = 0
 
 class ArrangedWorkDay:
-
     def __init__(self, startDate, endDate):
         self.startDate = startDate
         self.endDate = endDate

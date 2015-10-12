@@ -2,7 +2,7 @@
 import wx
 
 from src.Constants import Constants
-from src.UI.MainWindow import MainWindow
+from src.View.MainWindow import MainWindow
 
 __author__ = 'yzhou7'
 

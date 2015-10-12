@@ -1,8 +1,10 @@
 # coding=utf-8
-import os
 
-from tinydb import TinyDB, where
-from src.Util.TimeUtil import TimeUtil
+import os
+import sqlite3
+
+from src.Constants import Constants
+from src.Util.LicenseValidateUtil import LicenseValidateUtil
 
 __author__ = 'yzhou7'
 
@@ -14,25 +16,26 @@ class SystemInitializer:
     # entry for system init
     @staticmethod
     def initialize():
-        db = TinyDB(os.environ['LOCALAPPDATA'] + '\\scheduler.dat')
-        startDate = db.search(where('startDate'))
-        if len(startDate) > 0:
-            if TimeUtil.getDayLength(startDate[0]['startDate'], TimeUtil.getToday()) > 2:
-                return False
-            else:
-                return True
-        else:
-            db.insert({'startDate': TimeUtil.getToday()})
-            return True
-
-        # SystemInitializer.createDir()
+        SystemInitializer.createDir()
+        # SystemInitializer.createDB()
         # SystemInitializer.createFiles()
+        return LicenseValidateUtil.validate()
+
+    @staticmethod
+    def createDir():
+        validationPath = os.environ['LOCALAPPDATA'] + Constants.PATH_DELIMETER + Constants.APPLICATION_NAME
+        if not os.path.exists(validationPath):
+            os.makedirs(validationPath)
 
     # @staticmethod
-    # def createDir():
-    #     if not os.path.exists(Constants.DATA_DIR):
-    #         os.makedirs(Constants.DATA_DIR)
-    #
+    # def createDB():
+    #     conn = sqlite3.connect(Constants.UNITED_DATABASE_PATH)
+    #     cur = conn.cursor()
+    #     cur.execute("CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, username VARCHAR[30], usergroup INTEGER DEFAULT 0)")
+    #     cur.execute("CREATE TABLE IF NOT EXISTS class (id INTEGER PRIMARY KEY AUTOINCREMENT, groupname VARCHAR[30], workhour INTEGER DEFAULT 8)")
+    #     cur.execute("CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, username VARCHAR[20], usergroup INTEGER DEFAULT 0)")
+    #     conn.commit()
+    #     conn.close()
     # @staticmethod
     # def createFiles():
     #     SystemInitializer.createBuyerFile()
