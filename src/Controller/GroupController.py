@@ -1,4 +1,5 @@
 # coding=utf-8
+import logging
 
 from tinydb import TinyDB
 from src.Constants import Constants
@@ -16,9 +17,11 @@ class GroupController():
 
     def createGroup(self, group):
         try:
-            eid = self.getTable().insert({'groupName': group.groupName, 'groupDesc': group.groupDesc, 'workHour': group.workHour})
+            eid = self.getTable().insert(
+                {'groupName': group.groupName, 'groupDesc': group.groupDesc, 'workHour': group.workHour,
+                 'workLoad': group.workLoad})
         except Exception as e:
-            print(str(e))
+            logging.exception(str(e))
             return -1
         return eid
 
@@ -27,10 +30,11 @@ class GroupController():
         try:
             result = self.getTable().get(eid=id)
         except Exception as e:
-            print(str(e))
+            logging.exception(str(e))
         if result == None:
             return result
-        return Group(groupName=result['groupName'], groupDesc=result['groupDesc'], workHour=result['workHour'], groupId=result.eid)
+        return Group(groupName=result['groupName'], groupDesc=result['groupDesc'], workHour=result['workHour'],
+                     workLoad=result['workLoad'], groupId=result.eid)
 
     def getGroupName(self, id):
         group = self.getGroup(id)
@@ -44,12 +48,13 @@ class GroupController():
         try:
             result = self.getTable().all()
         except Exception as e:
-            print(str(e))
+            logging.exception(str(e))
         if result == None or len(result) == 0:
             return result
-        return list(map(lambda x: Group(groupName=x['groupName'], groupDesc=x['groupDesc'], workHour=x['workHour'], groupId=x.eid), result))
+        return list(map(lambda x: Group(groupName=x['groupName'], groupDesc=x['groupDesc'], workHour=x['workHour'],
+                                        workLoad=x['workLoad'], groupId=x.eid), result))
 
-    def editGroup(self, id, groupName='', groupDesc='', workHour=-1):
+    def editGroup(self, id, groupName='', groupDesc='', workHour=-1, workLoad=-1):
         isSuccess = True
         try:
             table = self.getTable()
@@ -59,8 +64,10 @@ class GroupController():
                 table.update({'groupDesc': groupDesc}, eids=[id])
             if workHour != -1:
                 table.update({'workHour': workHour}, eids=[id])
+            if workLoad != -1:
+                table.update({'workLoad': workLoad}, eids=[id])
         except Exception as e:
-            print(str(e))
+            logging.exception(str(e))
             isSuccess = False
         return isSuccess
 
@@ -69,14 +76,14 @@ class GroupController():
         try:
             self.getTable().remove(eids=[id])
         except Exception as e:
-            print(str(e))
+            logging.exception(str(e))
             isSuccess = False
         return isSuccess
 
 
 if __name__ == '__main__':
     c = GroupController()
-    newGroup = Group('test', "just for test", 7)
+    newGroup = Group('test', "just for test", 7, 9)
     eid = c.createGroup(newGroup)
     assert eid > 0
     print(eid)
@@ -85,6 +92,7 @@ if __name__ == '__main__':
     print(result.groupName)
     print(result.groupDesc)
     print(result.workHour)
+    print(result.workLoad)
     assert newGroup.groupName == result.groupName
     assert newGroup.groupDesc == result.groupDesc
     assert newGroup.workHour == result.workHour
@@ -92,7 +100,5 @@ if __name__ == '__main__':
     c.editGroup(eid, groupName='bbbb', workHour=567)
     result = c.getGroup(eid)
     assert result.groupName == 'bbbb'
-    # c.deleteGroup(eid)
-    # assert c.getGroup(eid) == None
-
-
+    c.deleteGroup(eid)
+    assert c.getGroup(eid) == None

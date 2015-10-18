@@ -12,7 +12,7 @@ class Scheduler:
     NUM_OF_WORKLOAD = 3
     MIN_WORK_DAY = 3
     MAX_WORK_DAY = 6
-    MAX_RETRY_TIME = 1000
+    MAX_RETRY_TIME = 10000
     # 保证基本公平，最多差值为delta*2
     MAX_DELTA_DAY = 1
 
@@ -113,6 +113,10 @@ class Scheduler:
         else:
             print('empty unbalanceResult')
             scheduleResult.message = u'没有找到符合条件的排班方案，请调整参数'
+
+        self.printFormatedCalendar(scheduleResult.workCalendar)
+        self.getMaxDelta(scheduleResult.workCalendar, targetDays)
+
         return scheduleResult
 
     def doSchedule(self, targetDays):
@@ -234,6 +238,7 @@ class Scheduler:
                 stats.arrangedWorkDay.append(
                     ArrangedWorkDay(firstTargetDate, min(firstTargetDate + randomWorkDay - 1, targetDays)))
 
+
             # 如果所有人的剩余工作天数都为0，则结束
             if sum(list(map(lambda x: x.workDayLeft, workerStats.values()))) == 0:
                 break
@@ -301,6 +306,7 @@ class Scheduler:
 
     def getMaxDelta(self, targetCalendar, targetDays):
         workerDayPerWorker = self.calculateWorkDayPerWorker(targetCalendar)
+        print(workerDayPerWorker)
         # 平均工时每人（天）,向上取整
         targetTotalWorkDay = int(targetDays * self.workload + len(self.workers) - 1) / len(self.workers)
         # result = list(filter(lambda x, y: abs(y - targetTotalWorkDay) > self.MAX_DELTA_DAY, workerDayPerWorker.items()))
@@ -309,6 +315,7 @@ class Scheduler:
             if abs(value - targetTotalWorkDay) > self.MAX_DELTA_DAY:
                 tempResult.append((key, value))
         result = list(map(lambda x: (x[0], abs(x[1] - targetTotalWorkDay)), tempResult))
+        print(result)
         if len(result) == 0:
             # 已经达到要求
             return self.MAX_DELTA_DAY
@@ -324,6 +331,12 @@ class Scheduler:
                 if workId in restCalendar[day]:
                     restCalendar[day].remove(workId)
         return restCalendar
+
+    def printFormatedCalendar(self, calendar):
+        for (date, workerIdList) in calendar.items():
+            print('DAY ' + (str(date) if date >= 10 else '0' + str(date)) + " : " + ", ".join(list(list(
+                map(lambda id: str(self.workers[id]) if self.workers[id] >= 10 else '0' + str(self.workers[id]),
+                    workerIdList)))))
 
     def rebalance(self, targetCalendar, workStats):
 
@@ -463,16 +476,16 @@ if __name__ == "__main__":
     # targetDays = 20
     # s.schedule(targetDays)
 
-    # workerNum = 20
-    # s = Scheduler(range(1, workerNum + 1), 14, 3, 8)
-    #
-    # targetDays = 26
-    # s.schedule(targetDays)
-    #
-
-
     workerNum = 20
-    s = Scheduler(list(range(workerNum)), 12, 3, 6)
+    s = Scheduler(list(range(1, workerNum + 1)), 14, 3, 8)
 
-    targetDays = 30
+    targetDays = 26
     s.schedule(targetDays)
+
+
+
+    # workerNum = 23
+    # s = Scheduler(list(range(workerNum)), 16, 3, 6)
+    #
+    # targetDays = 30
+    # s.schedule(targetDays)

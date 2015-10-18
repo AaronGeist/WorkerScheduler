@@ -1,18 +1,13 @@
 # coding=utf-8
-import os
 import re
 
 import wx
 import wx.grid
 import wx.lib.scrolledpanel as scrolled
+
 from src.Controller.GroupController import GroupController
 from src.Controller.UserController import UserController
 from src.Data.Group import Group
-from src.Data.User import User
-
-from src.Strategy.Scheduler import Scheduler
-from src.Util.TimeUtil import TimeUtil
-from src.Util.FileUtil import FileUtil
 
 __author__ = 'yzhou7'
 
@@ -59,10 +54,17 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
                         flag=wx.TOP | wx.LEFT, border=12)
 
         workingHourText = wx.StaticText(self, label=u'每日工时')
-        optionSizer.Add(workingHourText, pos=(0, 4), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+        optionSizer.Add(workingHourText, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
 
         self.workingHourInput = wx.TextCtrl(self, value='', style=wx.TE_PROCESS_ENTER)
-        optionSizer.Add(self.workingHourInput, pos=(0, 5),
+        optionSizer.Add(self.workingHourInput, pos=(1, 1),
+                        flag=wx.TOP | wx.LEFT, border=12)
+
+        workLoadText = wx.StaticText(self, label=u'每日出勤人数')
+        optionSizer.Add(workLoadText, pos=(1, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+
+        self.workLoadInput = wx.TextCtrl(self, value='', style=wx.TE_PROCESS_ENTER)
+        optionSizer.Add(self.workLoadInput, pos=(1, 3),
                         flag=wx.TOP | wx.LEFT, border=12)
 
         optionOuterSizer.Add(optionSizer)
@@ -79,7 +81,7 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
         btnSizer.Add(self.removeGroupBtn, pos=(0, 1), flag=wx.LEFT | wx.RIGHT, border=12)
         self.Bind(wx.EVT_BUTTON, self.onShowRemove, self.removeGroupBtn)
         self.removeIsShown = False
-        self.modifyGroupBtn = wx.Button(self, label=u'修改\n班组', size=(80, 66))
+        self.modifyGroupBtn = wx.Button(self, label=u'确认\n修改', size=(80, 66))
         self.modifyGroupBtn.SetFont(fontBtn)
         btnSizer.Add(self.modifyGroupBtn, pos=(0, 2), flag=wx.LEFT | wx.RIGHT, border=12)
         self.modifyGroupBtn.Hide()
@@ -97,20 +99,21 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
     def displayTodayData(self):
         gridSizer = wx.GridBagSizer(4, 4)
         self.grid = wx.grid.Grid(self)
-        self.grid.CreateGrid(0, 6)
+        self.grid.CreateGrid(0, 7)
         self.grid.SetColLabelValue(0, u'班组编号')
         self.grid.SetColLabelValue(1, u'班组名')
         self.grid.SetColLabelValue(2, u'备注')
         self.grid.SetColLabelValue(3, u'每日工时')
-        self.grid.SetColLabelValue(4, u'修改操作')
-        self.grid.SetColLabelValue(5, u'删除操作')
+        self.grid.SetColLabelValue(4, u'每日出勤人数')
+        self.grid.SetColLabelValue(5, u'修改操作')
+        self.grid.SetColLabelValue(6, u'删除操作')
         controller = GroupController()
         groups = controller.getAllGroup()
-        self.updateGrid(list(map(lambda x: [str(x.groupId), x.groupName, x.groupDesc, str(x.workHour)], groups)))
+        self.updateGrid(list(map(lambda x: [str(x.groupId), x.groupName, x.groupDesc, str(x.workHour), str(x.workLoad)], groups)))
         # 编号用来进行组操作，不用显示
         self.grid.HideCol(0)
-        self.grid.HideCol(4)
         self.grid.HideCol(5)
+        self.grid.HideCol(6)
         self.grid.AutoSize()
         self.Bind(wx.grid.EVT_GRID_CELL_LEFT_CLICK, self.onCellChoosen, self.grid)
         gridSizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
@@ -127,19 +130,21 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
             self.grid.SetCellValue(rowNum, 1, rows[rowNum][1])
             self.grid.SetCellValue(rowNum, 2, rows[rowNum][2])
             self.grid.SetCellValue(rowNum, 3, rows[rowNum][3])
-            self.grid.SetCellValue(rowNum, 4, '修改')
-            self.grid.SetCellValue(rowNum, 5, '删除')
+            self.grid.SetCellValue(rowNum, 4, rows[rowNum][4])
+            self.grid.SetCellValue(rowNum, 5, '修改')
+            self.grid.SetCellValue(rowNum, 6, '删除')
         self.grid.AutoSize()
         self.vBox.Layout()
 
     def refreshGrid(self):
         controller = GroupController()
         groups = controller.getAllGroup()
-        self.updateGrid(list(map(lambda x: [str(x.groupId), x.groupName, x.groupDesc, str(x.workHour)], groups)))
+        self.updateGrid(
+            list(map(lambda x: [str(x.groupId), x.groupName, x.groupDesc, str(x.workHour), str(x.workLoad)], groups)))
 
     def onCreate(self, evt):
         newGroup = Group(self.groupNameInput.GetValue().strip(), self.groupMemoInput.GetValue().strip(),
-                         self.workingHourInput.GetValue().strip())
+                         self.workingHourInput.GetValue().strip(), self.workLoadInput.GetValue().strip())
         if self.validateGroup(newGroup):
             controller = GroupController()
             eid = controller.createGroup(newGroup)
@@ -151,6 +156,7 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
             self.groupNameInput.Clear()
             self.groupMemoInput.Clear()
             self.workingHourInput.Clear()
+            self.workLoadInput.Clear()
 
     def validateGroup(self, group):
         errorMsg = ''
@@ -173,8 +179,9 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
         self.grid.SetCellValue(0, 1, group.groupName)
         self.grid.SetCellValue(0, 2, group.groupDesc)
         self.grid.SetCellValue(0, 3, str(group.workHour))
-        self.grid.SetCellValue(0, 4, u'修改')
-        self.grid.SetCellValue(0, 5, u'删除')
+        self.grid.SetCellValue(0, 4, str(group.workLoad))
+        self.grid.SetCellValue(0, 5, u'修改')
+        self.grid.SetCellValue(0, 6, u'删除')
         self.grid.AutoSize()
         self.vBox.Layout()
 
@@ -182,28 +189,29 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
         if not self.removeIsShown:
             self.removeIsShown = True
             self.removeGroupBtn.SetLabelText(u'结束\n操作')
-            self.grid.ShowCol(4)
             self.grid.ShowCol(5)
+            self.grid.ShowCol(6)
             self.grid.AutoSize()
         else:
             self.removeIsShown = False
             self.removeGroupBtn.SetLabelText(u'修改\n删除')
-            self.grid.HideCol(4)
             self.grid.HideCol(5)
+            self.grid.HideCol(6)
             self.resetModify()
             self.grid.AutoSize()
 
     def onCellChoosen(self, evt):
-        if evt.GetCol() == 4:
+        if evt.GetCol() == 5:
             # 修改事件
             self.groupIdInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 0))
             self.groupNameInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 1))
             self.groupMemoInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 2))
             self.workingHourInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 3))
+            self.workLoadInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 4))
             self.modifyGroupBtn.Show()
             self.vBox.Layout()
             # TODO 高亮编辑区
-        elif evt.GetCol() == 5:
+        elif evt.GetCol() == 6:
             # 删除事件
             # wx.MessageBox(str(self.grid.GetCellValue(evt.GetRow(), 0)))
             dlg = wx.MessageDialog(None, u'确认要删除班组 [' + self.grid.GetCellValue(evt.GetRow(), 1) + u'] 吗？',
@@ -216,7 +224,7 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
                 if result:
                     userController = UserController()
                     userController.removeGroup(int(self.grid.GetCellValue(evt.GetRow(), 0)))
-                    self.grid.DeleteRows(evt.GetRow())
+                    self.grid.DeleteRows(pos=evt.GetRow())
 
                 if result:
                     wx.MessageBox(u'删除成功')
@@ -236,13 +244,14 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
                 result = controller.editGroup(int(self.groupIdInput.GetValue()),
                                               self.groupNameInput.GetValue().strip(),
                                               self.groupMemoInput.GetValue().strip(),
-                                              self.workingHourInput.GetValue().strip())
+                                              self.workingHourInput.GetValue().strip(),
+                                              self.workLoadInput.GetValue().strip())
                 if result:
-                    wx.MessageBox(u'删除成功')
+                    wx.MessageBox(u'修改成功')
                     self.refreshGrid()
 
                 else:
-                    wx.MessageBox(u'删除失败')
+                    wx.MessageBox(u'修改失败')
             self.resetModify()
             dlg.Destroy()
 
@@ -252,3 +261,5 @@ class GroupManagementPanel(scrolled.ScrolledPanel):
         self.groupNameInput.Clear()
         self.groupMemoInput.Clear()
         self.workingHourInput.Clear()
+        self.workLoadInput.Clear()
+        self.vBox.Layout()

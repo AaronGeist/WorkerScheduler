@@ -9,10 +9,11 @@ class Constants:
     # System level
     MAIN_WINDOW_TITLE = u'排班助手V1'
     APPLICATION_NAME = u'MyPocket'
-    APPLICATION_VERSION = u'0.1'
+    APPLICATION_VERSION = u'1.0'
+    MAX_FREE_TRIAL_DAY = 15
 
     # License
-    LICENSE_PURCHASED = True
+    LICENSE_PURCHASED = False
 
     PATH_DELIMETER = '\\'
 
