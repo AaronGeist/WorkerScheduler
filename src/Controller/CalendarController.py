@@ -16,11 +16,29 @@ class CalendarController():
         db = TinyDB(Constants.DATABASE_ROOT_PATH + Constants.UNITED_DATABASE_FILENAME)
         return db.table(self.TABLE_NAME)
 
+    def parseScheduleResult(self, scheduleResult):
+        newResult = list()
+        for result in scheduleResult:
+            calendar = result[0]
+            workers = result[1]
+            group = result[2]
+            newResult.append([calendar, workers, group.groupName, group.groupId, group.workHour, group.workLoad])
+        return newResult
+
+    def generateScheduleResult(self, scheduleResult):
+        newResult = list()
+        for result in scheduleResult:
+            calendar = result[0]
+            workers = result[1]
+            group = Group(groupName=result[2], groupId=result[3], workHour=result[4], workLoad=result[5])
+            newResult.append([calendar, workers, group])
+        return newResult
+
     def createCalendar(self, calendar):
         try:
             eid = self.getTable().insert(
-                {'calName': calendar.calName, 'calendar': calendar.calendar, 'workerList': calendar.workerList,
-                 'groupId': calendar.groupId, 'workLoad': calendar.workLoad, 'startDate': calendar.startDate})
+                {'calName': calendar.calName, 'scheduleResult': self.parseScheduleResult(calendar.scheduleResult),
+                 'startDate': calendar.startDate})
         except Exception as e:
             logging.exception(str(e))
             return -1
@@ -34,8 +52,8 @@ class CalendarController():
             logging.exception(str(e))
         if result == None:
             return result
-        return Calendar(calName=result['calName'], calendar=result['calendar'], workerList=result['workerList'],
-                        groupId=result['groupId'], workLoad=result['workLoad'], startDate=result['startDate'], calId=result.eid)
+        return Calendar(calName=result['calName'], scheduleResult=self.generateScheduleResult(result['scheduleResult']),
+                        startDate=result['startDate'], calId=result.eid)
 
     def getAllCalendar(self):
         result = None
@@ -45,8 +63,9 @@ class CalendarController():
             logging.exception(str(e))
         if result == None or len(result) == 0:
             return result
-        return list(map(lambda x: Calendar(calName=x['calName'], calendar=x['calendar'], workerList=x['workerList'],
-                        groupId=x['groupId'], workLoad=x['workLoad'], startDate=x['startDate'], calId=x.eid), result))
+        return list(map(lambda x: Calendar(calName=x['calName'], scheduleResult=self.generateScheduleResult(x['scheduleResult']),
+                                           startDate=x['startDate'],
+                                           calId=x.eid), result))
 
     def deleteCalendar(self, id):
         isSuccess = True
@@ -60,19 +79,21 @@ class CalendarController():
 
 if __name__ == '__main__':
     c = CalendarController()
-    newCal = Calendar('test', {'1': [1, 2, 3, 4]}, [1, 2, 3, 4], 1, 4, '2015-05-05')
+    newCal = Calendar('test', [[{'1': [1, 2, 3, 4]}, [1, 2, 3, 4], Group('test', '', 1, 4, 2)]], '2015-05-05')
     eid = c.createCalendar(newCal)
     assert eid > 0
     print(eid)
     result = c.getCalendar(eid)
     assert result != None
     print(result.calName)
-    print(result.calendar)
+    print(result.scheduleResult)
     assert newCal.calName == result.calName
-    assert newCal.calendar == result.calendar
-    assert newCal.workerList == result.workerList
-    assert newCal.groupId == result.groupId
-    assert newCal.workLoad == result.workLoad
+    assert newCal.scheduleResult[0][0] == result.scheduleResult[0][0]
+    assert newCal.scheduleResult[0][1] == result.scheduleResult[0][1]
+    assert newCal.scheduleResult[0][2].groupId == result.scheduleResult[0][2].groupId
+    assert newCal.scheduleResult[0][2].groupName == result.scheduleResult[0][2].groupName
+    assert newCal.scheduleResult[0][2].workLoad == result.scheduleResult[0][2].workLoad
+    assert newCal.scheduleResult[0][2].workHour == result.scheduleResult[0][2].workHour
     assert newCal.startDate == result.startDate
 
     c.deleteCalendar(eid)

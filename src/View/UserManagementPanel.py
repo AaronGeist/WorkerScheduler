@@ -58,6 +58,13 @@ class UserManagementPanel(scrolled.ScrolledPanel):
 
         optionOuterSizer.Add(optionSizer)
 
+        userDescText = wx.StaticText(self, label=u'员工备注')
+        optionSizer.Add(userDescText, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
+
+        self.userDescInput = wx.TextCtrl(self, value='', style=wx.TE_PROCESS_ENTER)
+        optionSizer.Add(self.userDescInput, pos=(1, 1),
+                        flag=wx.TOP | wx.LEFT, border=12)
+
         fontBtn = wx.Font(13, wx.FONTFAMILY_MODERN, wx.NORMAL, wx.FONTWEIGHT_BOLD)
         btnOuterSizer = wx.StaticBoxSizer(wx.VERTICAL, self, u'操作')
         btnSizer = wx.GridBagSizer(4, 4)
@@ -106,22 +113,23 @@ class UserManagementPanel(scrolled.ScrolledPanel):
     def displayTodayData(self):
         gridSizer = wx.GridBagSizer(4, 4)
         self.grid = wx.grid.Grid(self)
-        self.grid.CreateGrid(0, 5)
+        self.grid.CreateGrid(0, 6)
         self.grid.SetColLabelValue(0, u'员工编号')
         self.grid.SetColLabelValue(1, u'员工名')
         self.grid.SetColLabelValue(2, u'所属班组')
-        self.grid.SetColLabelValue(3, u'修改操作')
-        self.grid.SetColLabelValue(4, u'删除操作')
+        self.grid.SetColLabelValue(3, u'备注')
+        self.grid.SetColLabelValue(4, u'修改操作')
+        self.grid.SetColLabelValue(5, u'删除操作')
         self.grid.HideCol(0)
-        self.grid.HideCol(3)
         self.grid.HideCol(4)
+        self.grid.HideCol(5)
         self.Bind(wx.grid.EVT_GRID_CELL_LEFT_CLICK, self.onCellChoosen, self.grid)
         controller = UserController()
         users = controller.getAllUser()
         groupController = GroupController()
 
         rows = list(
-            map(lambda x: [x.userId, x.userName, groupController.getGroupName(x.userGroup)], users))
+            map(lambda x: [x.userId, x.userName, groupController.getGroupName(x.userGroup), x.userDesc], users))
         self.updateGrid(rows)
         self.grid.AutoSize()
         gridSizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
@@ -137,8 +145,9 @@ class UserManagementPanel(scrolled.ScrolledPanel):
             self.grid.SetCellValue(rowNum, 0, str(rows[rowNum][0]))
             self.grid.SetCellValue(rowNum, 1, rows[rowNum][1])
             self.grid.SetCellValue(rowNum, 2, rows[rowNum][2])
-            self.grid.SetCellValue(rowNum, 3, u'修改')
-            self.grid.SetCellValue(rowNum, 4, u'删除')
+            self.grid.SetCellValue(rowNum, 3, rows[rowNum][3])
+            self.grid.SetCellValue(rowNum, 4, u'修改')
+            self.grid.SetCellValue(rowNum, 5, u'删除')
         self.grid.AutoSize()
         self.vBox.Layout()
 
@@ -147,7 +156,7 @@ class UserManagementPanel(scrolled.ScrolledPanel):
         users = controller.getAllUser()
         groupController = GroupController()
         rows = list(
-            map(lambda x: [x.userId, x.userName, groupController.getGroupName(x.userGroup)], users))
+            map(lambda x: [x.userId, x.userName, groupController.getGroupName(x.userGroup), x.userDesc], users))
         self.updateGrid(rows)
         self.grid.AutoSize()
 
@@ -162,7 +171,8 @@ class UserManagementPanel(scrolled.ScrolledPanel):
 
         controller = UserController()
         newUser = User(self.userNameInput.GetValue(),
-                       self.groupInnerMap.get(self.userGroupDropDown.GetSelection(), Group(groupId=0)).groupId)
+                       self.groupInnerMap.get(self.userGroupDropDown.GetSelection(), Group(groupId=0)).groupId,
+                       self.userDescInput.GetValue())
         eid = controller.createUser(newUser)
         if eid == -1:
             wx.MessageBox(u'创建用户失败')
@@ -179,8 +189,9 @@ class UserManagementPanel(scrolled.ScrolledPanel):
         self.grid.SetCellValue(0, 1, user.userName)
         groupController = GroupController()
         self.grid.SetCellValue(0, 2, groupController.getGroupName(user.userGroup))
-        self.grid.SetCellValue(0, 3, u'修改')
-        self.grid.SetCellValue(0, 4, u'删除')
+        self.grid.SetCellValue(0, 3, user.userDesc)
+        self.grid.SetCellValue(0, 4, u'修改')
+        self.grid.SetCellValue(0, 5, u'删除')
         self.grid.AutoSize()
         self.vBox.Layout()
 
@@ -188,20 +199,20 @@ class UserManagementPanel(scrolled.ScrolledPanel):
         if not self.removeIsShown:
             self.removeIsShown = True
             self.removeGroupBtn.SetLabelText(u'结束\n操作')
-            self.grid.ShowCol(3)
             self.grid.ShowCol(4)
+            self.grid.ShowCol(5)
             self.grid.AutoSize()
             self.vBox.Layout()
         else:
             self.removeIsShown = False
             self.removeGroupBtn.SetLabelText(u'修改\n删除')
-            self.grid.HideCol(3)
             self.grid.HideCol(4)
+            self.grid.HideCol(5)
             self.resetModify()
             self.grid.AutoSize()
 
     def onCellChoosen(self, evt):
-        if evt.GetCol() == 3:
+        if evt.GetCol() == 4:
             # 修改事件
             self.userIdInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 0))
             self.userNameInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 1))
@@ -209,9 +220,10 @@ class UserManagementPanel(scrolled.ScrolledPanel):
             userGroupName = self.grid.GetCellValue(evt.GetRow(), 2)
             if userGroupName in items:
                 self.userGroupDropDown.SetStringSelection(userGroupName)
+            self.userDescInput.SetValue(self.grid.GetCellValue(evt.GetRow(), 3))
             self.modifyGroupBtn.Show()
             self.vBox.Layout()
-        elif evt.GetCol() == 4:
+        elif evt.GetCol() == 5:
             # 删除事件
             dlg = wx.MessageDialog(None, u'确认要删除员工 [' + self.grid.GetCellValue(evt.GetRow(), 1) + u'] 吗？',
                                    'MessageDialog', wx.OK | wx.CANCEL)
@@ -237,7 +249,8 @@ class UserManagementPanel(scrolled.ScrolledPanel):
             controller = UserController()
             result = controller.editUser(int(self.userIdInput.GetValue()),
                                          self.userNameInput.GetValue().strip(),
-                                         groupId)
+                                         groupId,
+                                         self.userDescInput.GetValue().strip())
             if result:
                 wx.MessageBox(u'修改成功')
                 self.refreshGrid()
@@ -286,4 +299,5 @@ class UserManagementPanel(scrolled.ScrolledPanel):
         self.userIdInput.Clear()
         self.userNameInput.Clear()
         self.userGroupDropDown.SetSelection(0)
+        self.userDescInput.Clear()
         self.vBox.Layout()

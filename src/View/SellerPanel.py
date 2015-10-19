@@ -22,10 +22,8 @@ class SellerPanel(scrolled.ScrolledPanel):
     def __init__(self, parent):
         scrolled.ScrolledPanel.__init__(self, parent)
 
-        self.selectedWorkers = list()
-        self.selectedGroup = None
-        self.scheduledWorkers = list()
-        self.scheduledGroup = None
+        self.selectedScheduleInput = list()
+        self.scheduledInput = list()
         self.scheduledStartDate = TimeUtil.getToday()
         self.exportData = list()
         self.displayWeeklyReport = True
@@ -53,16 +51,9 @@ class SellerPanel(scrolled.ScrolledPanel):
 
         userGroupText = wx.StaticText(self, label=u'排班班组')
         optionSizer.Add(userGroupText, pos=(0, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
-        self.userGroupDropDown = wx.ListBox(self, style=wx.LB_SINGLE, choices=self.loadGroupList(), size=(100, 50))
+        self.userGroupDropDown = wx.ListBox(self, style=wx.LB_MULTIPLE, choices=self.loadGroupList(), size=(100, 50))
         self.userGroupDropDown.Bind(wx.EVT_LISTBOX, self.onSelection)
         optionSizer.Add(self.userGroupDropDown, pos=(0, 1), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
-
-        # workloadText = wx.StaticText(self, label=u'每天出勤人数')
-        # optionSizer.Add(workloadText, pos=(0, 2), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
-        #
-        # self.workloadInput = wx.TextCtrl(self, value='', style=wx.TE_PROCESS_ENTER)
-        # optionSizer.Add(self.workloadInput, pos=(0, 3),
-        #                 flag=wx.TOP | wx.LEFT, border=12)
 
         minWorkDays = wx.StaticText(self, label=u'最大连续休息天数')
         optionSizer.Add(minWorkDays, pos=(1, 0), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
@@ -139,6 +130,11 @@ class SellerPanel(scrolled.ScrolledPanel):
         btnSizer.Add(self.loadBtn, pos=(1, 1), flag=wx.BOTTOM | wx.LEFT | wx.RIGHT, border=12)
         self.Bind(wx.EVT_BUTTON, self.onLoadCalendar, self.loadBtn)
 
+        self.deleteBtn = wx.Button(self, label=u'删除\n排班', size=(80, 66))
+        self.deleteBtn.SetFont(fontBtn)
+        btnSizer.Add(self.deleteBtn, pos=(1, 2), flag=wx.BOTTOM | wx.LEFT | wx.RIGHT, border=12)
+        self.Bind(wx.EVT_BUTTON, self.onDeleteCalendar, self.deleteBtn)
+
         btnOuterSizer.Add(btnSizer)
 
         outerSizer = wx.BoxSizer(orient=wx.HORIZONTAL)
@@ -178,6 +174,9 @@ class SellerPanel(scrolled.ScrolledPanel):
 
     def updateGrid(self, rows):
         self.grid.ClearGrid()
+        self.appendGrid(rows)
+
+    def appendGrid(self, rows):
         currentRowNum = self.grid.GetNumberRows()
         if currentRowNum < len(rows):
             self.grid.AppendRows(numRows=(len(rows) - currentRowNum))
@@ -230,87 +229,111 @@ class SellerPanel(scrolled.ScrolledPanel):
         elif currentRowNum > len(rows):
             self.grid2.DeleteRows(numRows=(currentRowNum - len(rows)))
 
-        for rowNum in range(len(rows)):
-            if TimeUtil.isWeekend(rows[rowNum][0]):
+        rowNum = 0
+        for row in rows:
+            self.grid2.SetCellValue(rowNum, 0, row[0])
+            self.grid2.SetCellValue(rowNum, 1, row[1])
+            if (rowNum + 1) % 7 == 0 or (rowNum + 1) % 7 == 6:
                 self.grid2.SetCellBackgroundColour(rowNum, 0, 'yellow')
                 self.grid2.SetCellBackgroundColour(rowNum, 1, 'yellow')
-            self.grid2.SetCellValue(rowNum, 0, rows[rowNum][0])
-            self.grid2.SetCellValue(rowNum, 1, rows[rowNum][1])
+            rowNum += 1
 
         self.grid2.AutoSize()
         self.vBox.Layout()
 
     def onSchedule(self, evt):
-        self.scheduledWorkers = self.selectedWorkers
-        self.scheduledGroup = self.selectedGroup
+        self.scheduledInput = self.selectedScheduleInput
         self.startDateInput.SetValue(TimeUtil.getMonday(self.startDateInput.GetValue()))
         self.endDateInput.SetValue(TimeUtil.getSunday(self.endDateInput.GetValue()))
         self.scheduledStartDate = self.startDateInput.GetValue()
         if not self.checkInput():
             return
 
-        # 现在将工作和休息互换，算法不变
-        s = Scheduler(workers=list(range(len(self.scheduledWorkers))),
-                      dailyRequiredWorkerNum=len(self.scheduledWorkers) - int(self.scheduledGroup.workLoad),
-                      maxRestDay=self.maxWorkDaysInput.GetValue(),
-                      maxWorkDay=self.maxRestDaysInput.GetValue(),
-                      isShuffle=True)
-        targetDays = TimeUtil.getDayLength(self.startDateInput.GetValue(), self.endDateInput.GetValue())
-        scheduleResult = s.schedule(int(targetDays))
-        if scheduleResult.message.strip() != '':
-            wx.MessageBox(scheduleResult.message)
+        self.resultList = list()
+        for input in self.scheduledInput:
+            scheduledWorkers = input[0]
+            scheduledGroup = input[1]
+            # 现在将工作和休息互换，算法不变
+            s = Scheduler(workers=list(range(len(scheduledWorkers))),
+                          dailyRequiredWorkerNum=len(scheduledWorkers) - int(scheduledGroup.workLoad),
+                          maxRestDay=self.maxWorkDaysInput.GetValue(),
+                          maxWorkDay=self.maxRestDaysInput.GetValue(),
+                          isShuffle=True)
+            targetDays = TimeUtil.getDayLength(self.startDateInput.GetValue(), self.endDateInput.GetValue())
+            scheduleResult = s.schedule(int(targetDays))
+            if scheduleResult.message.strip() != '':
+                wx.MessageBox(scheduledGroup.groupName + ": " + scheduleResult.message)
 
-        self.resultCalendar = scheduleResult.restCalendar
-        self.displayScheduleResult(self.resultCalendar, self.scheduledWorkers, self.scheduledGroup.workLoad,
-                                   self.scheduledStartDate)
+            self.resultList.append([scheduleResult.restCalendar, scheduledWorkers, scheduledGroup])
+
+        self.displayScheduleResult(self.resultList, self.scheduledStartDate)
         self.exportBtn.Enable(True)
         self.saveBtn.Enable(True)
+        self.selectedScheduleInput = list()
 
-    def displayScheduleResult(self, calendar, workers, workLoad, startDate):
-        try:
-            result = dict()
-            workdayDict = Scheduler.getWorkDayForEachWorker(calendar, workers)
-            for (workIndex, workDayList) in workdayDict.items():
-                workDayList = list(map(int, workDayList))
-                workDayList.sort()
-                weeklyWorkDayList = list()
-                week = 1
-                startIndex = 0
-                for dateIndex in range(len(workDayList)):
-                    if int(workDayList[dateIndex]) > week * 7:
+    def displayScheduleResult(self, resultList, startDate):
+        personalWorkDayDict = dict()
+        personalWorkDayLengthList = list()
+        dailyAttendenceDict = dict()
+        for result in resultList:
+            calendar = result[0]
+            workers = result[1]
+            group = result[2]
+            try:
+                workdayDict = Scheduler.getWorkDayForEachWorker(calendar, workers)
+                for (workIndex, workDayList) in workdayDict.items():
+                    workDayList = list(map(int, workDayList))
+                    workDayList.sort()
+                    weeklyWorkDayList = list()
+                    week = 1
+                    startIndex = 0
+                    for dateIndex in range(len(workDayList)):
+                        if int(workDayList[dateIndex]) > week * 7:
+                            weeklyWorkDayList.append(
+                                list(
+                                    map(lambda date: date % 7 if date % 7 != 0 else 7,
+                                        workDayList[startIndex: dateIndex])))
+                            startIndex = dateIndex
+                            week += 1
+                    if startIndex < len(workDayList):
                         weeklyWorkDayList.append(
-                            list(
-                                map(lambda date: date % 7 if date % 7 != 0 else 7, workDayList[startIndex: dateIndex])))
-                        startIndex = dateIndex
-                        week += 1
-                if startIndex < len(workDayList):
-                    weeklyWorkDayList.append(
-                        list(map(lambda date: date % 7 if date % 7 != 0 else 7,
-                                 workDayList[startIndex: len(workDayList)])))
-                result[workers[workIndex]] = weeklyWorkDayList
-            self.exportData = result
-            self.updateGrid1(result, startDate)
+                            list(map(lambda date: date % 7 if date % 7 != 0 else 7,
+                                     workDayList[startIndex: len(workDayList)])))
+                    personalWorkDayDict['{0}({1})'.format(workers[workIndex], group.groupName)] = weeklyWorkDayList
 
-            self.personalTotalWorkDay = Scheduler.calculateWorkDayPerWorker(calendar)
-            workDayData = list()
-            for i in range(len(workers)):
-                workDayData.append([workers[i], str(self.personalTotalWorkDay.get(i, 0)),
-                                    str(self.personalTotalWorkDay.get(i, 0) * int(workLoad))])
-            # 添加平均数行
-            avgWorkDayNum = math.ceil(float(len(calendar.keys())) * int(
-                workLoad) / len(
-                workers))
-            avgWorkHour = avgWorkDayNum * int(workLoad)
-            workDayData.append([u'平均出勤天数', str(avgWorkDayNum), str(avgWorkHour)])
-            self.updateGrid(workDayData)
+                self.personalTotalWorkDay = Scheduler.calculateWorkDayPerWorker(calendar)
+                for i in range(len(workers)):
+                    personalWorkDayLengthList.append(
+                        ['{0}({1})'.format(workers[i], group.groupName), str(self.personalTotalWorkDay.get(i, 0)),
+                         str(self.personalTotalWorkDay.get(i, 0) * int(group.workHour))])
+                # # 添加平均数行
+                # avgWorkDayNum = math.ceil(float(len(calendar.keys())) * int(
+                #     group.workLoad) / len(
+                #     workers))
+                # avgWorkHour = avgWorkDayNum * int(group.workHour)
+                # workDayData.append([u'平均出勤天数', str(avgWorkDayNum), str(avgWorkHour)])
 
-            result = list()
-            for keyValuePair in sorted(calendar.items(), key=lambda d: int(d[0])):
-                result.append([TimeUtil.getFormatedDate(startDate, int(keyValuePair[0]) - 1),
-                               ",   ".join(map(str, map(lambda index: workers[index], keyValuePair[1])))])
-            self.updateGrid2(result)
-        except Exception as e:
-            wx.MessageBox(u'出错啦: ' + str(e))
+                for keyValuePair in sorted(calendar.items(), key=lambda d: int(d[0])):
+                    currentDate = TimeUtil.getFormatedDate(startDate, int(keyValuePair[0]) - 1)
+                    currentDateArrange = dailyAttendenceDict.get(currentDate, '')
+                    # 分割组与组之间
+                    if currentDateArrange != '':
+                        currentDateArrange += ',   '
+                    currentDateArrange += ",   ".join(map(str,
+                                                          map(lambda index: '{0}({1})'.format(workers[index],
+                                                                                              group.groupName),
+                                                              keyValuePair[1])))
+                    dailyAttendenceDict[currentDate] = currentDateArrange
+
+            except Exception as e:
+                wx.MessageBox(u'出错啦: ' + str(e))
+
+        # 按日期排序
+        dailyAttendenceList = sorted(dailyAttendenceDict.items(), key=lambda d: d[0])
+        self.exportData = [personalWorkDayDict, dailyAttendenceList, personalWorkDayLengthList, startDate]
+        self.updateGrid(personalWorkDayLengthList)
+        self.updateGrid1(personalWorkDayDict, startDate)
+        self.updateGrid2(dailyAttendenceList)
 
     def checkInput(self):
         # try:
@@ -344,22 +367,13 @@ class SellerPanel(scrolled.ScrolledPanel):
             filePath = dialog.GetPath()
             if filePath:
                 try:
-                    data = self.exportData
-                    # firstLine = u'日期,|,'
-                    # firstLine += u'出勤人员名单'
-                    # firstLine += ''.join([u','] * int(self.workloadInput.GetValue()))
-                    # firstLine += u'|,休息人员名单,'
-                    # firstLine += u''.join(
-                    #     [u','] * (len(data) - int(self.workloadInput.GetValue())))
-                    #
-                    # lines = [firstLine]
-                    # lines.extend(list(map(
-                    #     lambda item: item[0] + u',|,' + u''.join(item[1].split()) + u',|,' + u''.join(
-                    #         item[2].split()), data)))
+                    personalWorkDayDict = self.exportData[0]
+                    dailyAttendenceList = self.exportData[1]
+                    personalWorkDayLengthList = self.exportData[2]
+                    startDate = self.exportData[3]
+
                     firstLine = u'员工名'
-                    totalWeekNum = int(
-                        TimeUtil.getDayLength(self.startDateInput.GetValue(), self.endDateInput.GetValue()) / 7)
-                    startDate = self.startDateInput.GetValue()
+                    totalWeekNum = int(len(dailyAttendenceList) / 7)
                     for totalWeekNum in range(1, totalWeekNum + 1):
                         dateStr = u',"第 ' + str(totalWeekNum) + u' 周\n'
                         endDate = TimeUtil.getFormatedDate(startDate, 6)
@@ -369,16 +383,20 @@ class SellerPanel(scrolled.ScrolledPanel):
 
                     lines = [firstLine]
 
-                    for (wokerName, workDayList) in data.items():
+                    for (wokerName, workDayList) in personalWorkDayDict.items():
                         lines.append(wokerName + u',' + u','.join(
                             list(map(lambda week: ' '.join(list(map(str, week))), workDayList))))
 
                     lines.append('\n')
-                    lines.append(u'员工名,总工时（小时）')
+                    lines.append(u'员工名,总天数,总工时（小时）')
                     # 工时
-                    for i in range(len(self.scheduledWorkers)):
-                        lines.append(self.scheduledWorkers[i] + ',' + str(
-                            self.personalTotalWorkDay.get(i, 0) * int(self.scheduledGroup.workLoad)))
+                    for i in range(len(personalWorkDayLengthList)):
+                        lines.append(','.join(personalWorkDayLengthList[i]))
+
+                    lines.append('\n')
+                    lines.append(u'日期,出勤员工')
+                    for dailyAttendence in dailyAttendenceList:
+                        lines.append(','.join(dailyAttendence))
 
                     FileUtil.writeAll(filePath, lines)
                     wx.MessageBox(u'成功导出到文件', filePath)
@@ -397,32 +415,37 @@ class SellerPanel(scrolled.ScrolledPanel):
         return groupNameList
 
     def onSelection(self, evt):
-        groupId = self.groupInnerMap.get(evt.GetSelection(), Group(groupId=0)).groupId
-        self.selectedGroup = GroupController().getGroup(groupId)
-        users = UserController().getAllUserByGroup(groupId)
-        self.selectedWorkers = list(map(lambda user: user.userName, users))
-        rows = list(map(lambda user: [user.userName, '', ''], users))
+        self.scheduleBtn.Enable(False)
+        rows = list()
+        self.selectedScheduleInput.clear()
+        for selection in self.userGroupDropDown.GetSelections():
+            groupId = self.groupInnerMap.get(selection, Group(groupId=0)).groupId
+            group = GroupController().getGroup(groupId)
+            users = UserController().getAllUserByGroup(groupId)
+            self.selectedScheduleInput.append([list(map(lambda user: user.userName, users)), group])
+            rows.extend(list(map(lambda user: ['{0}({1})'.format(user.userName, group.groupName), '', ''], users)))
+            if not (users == None or len(users) == 0):
+                self.scheduleBtn.Enable(True)
         self.updateGrid(rows)
-        if users == None or len(users) == 0:
-            self.scheduleBtn.Enable(False)
-        else:
-            self.scheduleBtn.Enable(True)
 
     def refreshGroupList(self):
         self.userGroupDropDown.Clear()
-        self.userGroupDropDown.InsertItems(self.loadGroupList(), 0)
+        groupList = self.loadGroupList()
+        if len(groupList) > 0:
+            self.userGroupDropDown.InsertItems(groupList, 0)
 
     def onSaveCalendar(self, evt):
         dlg = wx.TextEntryDialog(None, "为该排班选择一个名字", "排班方案名", "")
 
         if dlg.ShowModal() == wx.ID_OK:
             calName = dlg.GetValue()
-            calendar = Calendar(calName, self.resultCalendar, self.scheduledWorkers, self.scheduledGroup.groupId,
-                                self.scheduledGroup.workLoad, self.scheduledStartDate)
+            calendar = Calendar(calName, self.resultList, self.scheduledStartDate)
             eid = CalendarController().createCalendar(calendar)
             if eid == -1:
                 wx.MessageBox(u'保存排班失败，请重试')
                 return
+            else:
+                wx.MessageBox(u'保存排班[{0}]成功'.format(calName))
 
     def onLoadCalendar(self, evt):
         dlg = wx.SingleChoiceDialog(None, "请选择将要加载的排班方案",
@@ -431,16 +454,16 @@ class SellerPanel(scrolled.ScrolledPanel):
         if dlg.ShowModal() == wx.ID_OK:
             # 检查该方案是否还有效
             calendar = self.calInnerMap.get(dlg.GetSelection(), Calendar(calId=0))
-            groupId = calendar.groupId
-            group = GroupController().getGroup(groupId)
-            if group == None \
-                    or group.workLoad != calendar.workLoad \
-                    or len(UserController().getAllUserByGroup(groupId)) != len(calendar.workerList):
-                wx.MessageBox("对应班组已被删除或修改，方案无效")
-                CalendarController().deleteCalendar(calendar.calId)
-                return
+            # groupId = calendar.groupId
+            # group = GroupController().getGroup(groupId)
+            # if group == None \
+            #         or group.workLoad != calendar.workLoad \
+            #         or len(UserController().getAllUserByGroup(groupId)) != len(calendar.workerList):
+            #     wx.MessageBox("对应班组已被删除或修改，方案无效")
+            #     CalendarController().deleteCalendar(calendar.calId)
+            #     return
 
-            self.displayScheduleResult(calendar.calendar, calendar.workerList, calendar.workLoad, calendar.startDate)
+            self.displayScheduleResult(calendar.scheduleResult, calendar.startDate)
 
     def loadCalendarList(self):
         calList = CalendarController().getAllCalendar()
@@ -463,3 +486,12 @@ class SellerPanel(scrolled.ScrolledPanel):
             self.grid1.Hide()
             self.grid2.Show()
             self.vBox.Layout()
+
+    def onDeleteCalendar(self, evt):
+        dlg = wx.SingleChoiceDialog(None, "请选择将要删除的排班方案",
+                                    "方案列表",
+                                    self.loadCalendarList())
+        if dlg.ShowModal() == wx.ID_OK:
+            calendar = self.calInnerMap.get(dlg.GetSelection(), Calendar(calId=0))
+            CalendarController().deleteCalendar(calendar.calId)
+            wx.MessageBox('删除排班方案成功')

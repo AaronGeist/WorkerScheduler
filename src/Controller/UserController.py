@@ -17,7 +17,7 @@ class UserController():
 
     def createUser(self, user):
         try:
-            eid = self.getTable().insert({'userName': user.userName, 'userGroup': user.userGroup})
+            eid = self.getTable().insert({'userName': user.userName, 'userGroup': user.userGroup, 'userDesc': user.userDesc})
         except Exception as e:
             print(str(e))
             return -1
@@ -31,7 +31,7 @@ class UserController():
             print(str(e))
         if result == None:
             return result
-        return User(userName=result['userName'], userGroup=result['userGroup'], userId=result.eid)
+        return User(userName=result['userName'], userGroup=result['userGroup'], userDesc=result['userDesc'], userId=result.eid)
 
     def getAllUser(self):
         result = None
@@ -41,7 +41,7 @@ class UserController():
             print(str(e))
         if result == None or len(result) == 0:
             return result
-        return list(map(lambda x: User(userName=x['userName'], userGroup=x['userGroup'], userId=x.eid), result))
+        return list(map(lambda x: User(userName=x['userName'], userGroup=x['userGroup'], userDesc=x['userDesc'], userId=x.eid), result))
 
     def getAllUserByGroup(self, groupId):
         result = None
@@ -51,9 +51,9 @@ class UserController():
             print(str(e))
         if result == None or len(result) == 0:
             return result
-        return list(map(lambda x: User(userName=x['userName'], userGroup=x['userGroup'], userId=x.eid), result))
+        return list(map(lambda x: User(userName=x['userName'], userGroup=x['userGroup'], userDesc=x['userDesc'], userId=x.eid), result))
 
-    def editUser(self, id, userName='', userGroup=-1):
+    def editUser(self, id, userName='', userGroup=-1, userDesc=''):
         isSuccess = True
         try:
             table = self.getTable()
@@ -61,6 +61,8 @@ class UserController():
                 table.update({'userName': userName}, eids=[id])
             if userGroup != -1:
                 table.update({'userGroup': userGroup}, eids=[id])
+            if userDesc != '':
+                table.update({'userDesc': userDesc}, eids=[id])
         except Exception as e:
             print(str(e))
             isSuccess = False
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     print(result.userGroup)
     assert newUser.userName == result.userName
     assert newUser.userGroup == result.userGroup
+    assert newUser.userDesc == result.userDesc
 
     result = c.getAllUser()
     assert result != None
@@ -100,6 +103,7 @@ if __name__ == '__main__':
     print(result[0].userGroup)
     assert newUser.userName == result[0].userName
     assert newUser.userGroup == result[0].userGroup
+    assert newUser.userDesc == result[0].userDesc
 
     result = c.getAllUserByGroup(123)
     assert result != None
