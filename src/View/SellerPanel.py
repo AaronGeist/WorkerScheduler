@@ -1,16 +1,15 @@
 # coding=utf-8
 import os
-import math
 
 import wx
 import wx.grid
 import wx.lib.scrolledpanel as scrolled
+
 from src.Controller.CalendarController import CalendarController
 from src.Controller.GroupController import GroupController
 from src.Controller.UserController import UserController
 from src.Data.Calendar import Calendar
 from src.Data.Group import Group
-
 from src.Strategy.Scheduler import Scheduler
 from src.Util.TimeUtil import TimeUtil
 from src.Util.FileUtil import FileUtil
@@ -36,6 +35,8 @@ class SellerPanel(scrolled.ScrolledPanel):
         self.SetScrollRate(20, 20)
         self.SetAutoLayout(True)
         self.SetBackgroundColour('white')
+
+        self.colorList = ['#ffffcc', '#99ffcc']
 
         self.vBox = wx.BoxSizer(wx.VERTICAL)
 
@@ -147,16 +148,18 @@ class SellerPanel(scrolled.ScrolledPanel):
     def displayTodayData(self):
         gridSizer = wx.GridBagSizer(4, 4)
         self.grid = wx.grid.Grid(self)
-        self.grid.CreateGrid(0, 3)
+        self.grid.CreateGrid(0, 4)
         self.grid.SetColLabelValue(0, u'员工名')
-        self.grid.SetColLabelValue(1, u'总出勤天数')
-        self.grid.SetColLabelValue(2, u'总工时')
+        self.grid.SetColLabelValue(1, u'班组名')
+        self.grid.SetColLabelValue(2, u'总出勤天数')
+        self.grid.SetColLabelValue(3, u'总工时')
         self.grid.AutoSize()
         gridSizer.Add(self.grid, pos=(1, 1), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.RIGHT, border=15)
 
         self.grid1 = wx.grid.Grid(self)
-        self.grid1.CreateGrid(0, 1)
+        self.grid1.CreateGrid(0, 2)
         self.grid1.SetColLabelValue(0, u'员工名')
+        self.grid1.SetColLabelValue(1, u'班组名')
         self.grid1.AutoSize()
         gridSizer.Add(self.grid1, pos=(1, 2), span=(1, 1), flag=wx.EXPAND | wx.TOP | wx.LEFT, border=15)
         if not self.displayWeeklyReport:
@@ -186,6 +189,7 @@ class SellerPanel(scrolled.ScrolledPanel):
             self.grid.SetCellValue(rowNum, 0, rows[rowNum][0])
             self.grid.SetCellValue(rowNum, 1, rows[rowNum][1])
             self.grid.SetCellValue(rowNum, 2, rows[rowNum][2])
+            self.grid.SetCellValue(rowNum, 3, rows[rowNum][3])
         self.grid.AutoSize()
         self.vBox.Layout()
 
@@ -197,8 +201,8 @@ class SellerPanel(scrolled.ScrolledPanel):
         elif currentRowNum > len(rows):
             self.grid1.DeleteRows(numRows=(currentRowNum - len(rows)))
 
-        totalWeekNum = len(list(rows.values())[0]) if len(rows.values()) > 0 else 0
-        currentColNum = self.grid1.GetNumberCols() - 1
+        totalWeekNum = len(rows[0][2]) if len(rows) > 0 else 0
+        currentColNum = self.grid1.GetNumberCols() - 2
         if currentColNum < totalWeekNum:
             self.grid1.AppendCols(numCols=(totalWeekNum - currentColNum))
         elif currentColNum > totalWeekNum:
@@ -208,14 +212,27 @@ class SellerPanel(scrolled.ScrolledPanel):
             dateStr = u'第 ' + str(totalWeekNum) + u' 周\n'
             endDate = TimeUtil.getFormatedDate(startDate, 6)
             dateStr += (startDate + ' -- ' + endDate)
-            self.grid1.SetColLabelValue(totalWeekNum, dateStr)
+            self.grid1.SetColLabelValue(totalWeekNum + 1, dateStr)
             startDate = TimeUtil.getFormatedDate(endDate, 1)
 
         rowNum = 0
-        for (wokerName, workDayList) in rows.items():
+        previousGroupName = ''
+        colorCnt = 0
+        for item in rows:
+            wokerName = item[0]
+            groupName = item[1]
+            workDayList = item[2]
+            if groupName != previousGroupName:
+                colorCnt += 1
+                previousGroupName = groupName
             self.grid1.SetCellValue(rowNum, 0, wokerName)
+            self.grid1.SetCellValue(rowNum, 1, groupName)
+            self.grid1.SetCellBackgroundColour(rowNum, 0, self.colorList[colorCnt % 2])
+            self.grid1.SetCellBackgroundColour(rowNum, 1, self.colorList[colorCnt % 2])
             for weekNum in range(len(workDayList)):
-                self.grid1.SetCellValue(rowNum, weekNum + 1, ',  '.join(list(map(str, workDayList[weekNum]))))
+                self.grid1.SetCellValue(rowNum, weekNum + 2, ',  '.join(list(map(str, workDayList[weekNum]))))
+                self.grid1.SetCellBackgroundColour(rowNum, weekNum + 2, self.colorList[colorCnt % 2])
+
             rowNum += 1
         self.grid1.AutoSize()
         self.vBox.Layout()
@@ -229,13 +246,35 @@ class SellerPanel(scrolled.ScrolledPanel):
         elif currentRowNum > len(rows):
             self.grid2.DeleteRows(numRows=(currentRowNum - len(rows)))
 
-        rowNum = 0
+        # 多一行给班组名
+        self.grid2.AppendRows(1)
+
+        totalGroupNum = len(rows[0][1]) if len(rows) > 0 else 0
+        currentColNum = self.grid2.GetNumberCols() - 1
+        if currentColNum < totalGroupNum:
+            self.grid2.AppendCols(numCols=(totalGroupNum - currentColNum))
+        elif currentColNum > totalGroupNum:
+            self.grid2.DeleteCols(numCols=(currentColNum - totalGroupNum))
+
+        self.grid2.SetCellBackgroundColour(0, 0, 'white')
+        rowNum = 1
         for row in rows:
-            self.grid2.SetCellValue(rowNum, 0, row[0])
-            self.grid2.SetCellValue(rowNum, 1, row[1])
-            if (rowNum + 1) % 7 == 0 or (rowNum + 1) % 7 == 6:
-                self.grid2.SetCellBackgroundColour(rowNum, 0, 'yellow')
-                self.grid2.SetCellBackgroundColour(rowNum, 1, 'yellow')
+            date = row[0]
+            self.grid2.SetCellValue(rowNum, 0, date)
+            self.grid2.SetCellBackgroundColour(rowNum, 0, 'white')
+
+            colCnt = 1
+            for groupArrange in row[1]:
+                arrangement = groupArrange[0]
+                group = groupArrange[1]
+                self.grid2.SetCellValue(0, colCnt, group.groupName)
+                self.grid2.SetCellBackgroundColour(0, colCnt, 'white')
+                self.grid2.SetCellValue(rowNum, colCnt, arrangement)
+                self.grid2.SetCellBackgroundColour(rowNum, colCnt, self.colorList[colCnt % 2])
+                if colCnt != 1:
+                    self.grid2.SetColLabelValue(colCnt, '')
+                colCnt += 1
+
             rowNum += 1
 
         self.grid2.AutoSize()
@@ -272,7 +311,7 @@ class SellerPanel(scrolled.ScrolledPanel):
         self.selectedScheduleInput = list()
 
     def displayScheduleResult(self, resultList, startDate):
-        personalWorkDayDict = dict()
+        personalWorkDayDict = list()
         personalWorkDayLengthList = list()
         dailyAttendenceDict = dict()
         for result in resultList:
@@ -299,13 +338,13 @@ class SellerPanel(scrolled.ScrolledPanel):
                         weeklyWorkDayList.append(
                             list(map(lambda date: date % 7 if date % 7 != 0 else 7,
                                      workDayList[startIndex: len(workDayList)])))
-                    personalWorkDayDict['{0}({1})'.format(workers[workIndex], group.groupName)] = weeklyWorkDayList
+                    personalWorkDayDict.append([workers[workIndex], group.groupName, weeklyWorkDayList])
 
-                self.personalTotalWorkDay = Scheduler.calculateWorkDayPerWorker(calendar)
+                personalTotalWorkDay = Scheduler.calculateWorkDayPerWorker(calendar)
                 for i in range(len(workers)):
                     personalWorkDayLengthList.append(
-                        ['{0}({1})'.format(workers[i], group.groupName), str(self.personalTotalWorkDay.get(i, 0)),
-                         str(self.personalTotalWorkDay.get(i, 0) * int(group.workHour))])
+                        [workers[i], group.groupName, str(personalTotalWorkDay.get(i, 0)),
+                         str(personalTotalWorkDay.get(i, 0) * int(group.workHour))])
                 # # 添加平均数行
                 # avgWorkDayNum = math.ceil(float(len(calendar.keys())) * int(
                 #     group.workLoad) / len(
@@ -315,14 +354,10 @@ class SellerPanel(scrolled.ScrolledPanel):
 
                 for keyValuePair in sorted(calendar.items(), key=lambda d: int(d[0])):
                     currentDate = TimeUtil.getFormatedDate(startDate, int(keyValuePair[0]) - 1)
-                    currentDateArrange = dailyAttendenceDict.get(currentDate, '')
-                    # 分割组与组之间
-                    if currentDateArrange != '':
-                        currentDateArrange += ',   '
-                    currentDateArrange += ",   ".join(map(str,
-                                                          map(lambda index: '{0}({1})'.format(workers[index],
-                                                                                              group.groupName),
-                                                              keyValuePair[1])))
+                    currentDateArrange = dailyAttendenceDict.get(currentDate, list())
+
+                    currentDateArrange.append(
+                        [",   ".join(map(str, map(lambda index: workers[index], keyValuePair[1]))), group])
                     dailyAttendenceDict[currentDate] = currentDateArrange
 
             except Exception as e:
@@ -372,7 +407,7 @@ class SellerPanel(scrolled.ScrolledPanel):
                     personalWorkDayLengthList = self.exportData[2]
                     startDate = self.exportData[3]
 
-                    firstLine = u'员工名'
+                    firstLine = u'员工名,班组名'
                     totalWeekNum = int(len(dailyAttendenceList) / 7)
                     for totalWeekNum in range(1, totalWeekNum + 1):
                         dateStr = u',"第 ' + str(totalWeekNum) + u' 周\n'
@@ -383,20 +418,34 @@ class SellerPanel(scrolled.ScrolledPanel):
 
                     lines = [firstLine]
 
-                    for (wokerName, workDayList) in personalWorkDayDict.items():
-                        lines.append(wokerName + u',' + u','.join(
+                    for item in personalWorkDayDict:
+                        wokerName = item[0]
+                        groupName = item[1]
+                        workDayList = item[2]
+                        lines.append(wokerName + ',' + groupName + u',' + u','.join(
                             list(map(lambda week: ' '.join(list(map(str, week))), workDayList))))
 
                     lines.append('\n')
-                    lines.append(u'员工名,总天数,总工时（小时）')
+                    lines.append(u'员工名,班组名,总天数,总工时（小时）')
                     # 工时
                     for i in range(len(personalWorkDayLengthList)):
                         lines.append(','.join(personalWorkDayLengthList[i]))
 
                     lines.append('\n')
                     lines.append(u'日期,出勤员工')
+                    groupInfo = ',' + ''.join(list(map(lambda x: x[1].groupName + ',' * int(x[1].workLoad), dailyAttendenceList[0][1])))
+
+                    innerLines = list()
                     for dailyAttendence in dailyAttendenceList:
-                        lines.append(','.join(dailyAttendence))
+                        date = dailyAttendence[0]
+                        groupAttendenceList = dailyAttendence[1]
+                        attendenceStr = date
+                        for groupAttendence in groupAttendenceList:
+                            attendence = groupAttendence[0]
+                            attendenceStr += ',' + attendence
+                        innerLines.append(attendenceStr)
+                    lines.append(groupInfo)
+                    lines.extend(innerLines)
 
                     FileUtil.writeAll(filePath, lines)
                     wx.MessageBox(u'成功导出到文件', filePath)
@@ -423,7 +472,7 @@ class SellerPanel(scrolled.ScrolledPanel):
             group = GroupController().getGroup(groupId)
             users = UserController().getAllUserByGroup(groupId)
             self.selectedScheduleInput.append([list(map(lambda user: user.userName, users)), group])
-            rows.extend(list(map(lambda user: ['{0}({1})'.format(user.userName, group.groupName), '', ''], users)))
+            rows.extend(list(map(lambda user: [user.userName, group.groupName, '', ''], users)))
             if not (users == None or len(users) == 0):
                 self.scheduleBtn.Enable(True)
         self.updateGrid(rows)
